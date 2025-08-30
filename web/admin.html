@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Arial,sans-serif;padding:16px}
+  input,button{padding:8px;margin:4px}
+  .row{margin:8px 0}
+</style>
+</head>
+<body>
+  <h3>Admin</h3>
+  <div class="row">
+    <input id="password" type="password" placeholder="ADMIN_SECRET"/>
+    <button id="login">Login</button>
+  </div>
+  <div class="row">
+    <input id="lat" placeholder="lat"/>
+    <input id="lng" placeholder="lng"/>
+    <input id="zoom" placeholder="zoom"/>
+    <button id="save">Guardar centro/zoom</button>
+  </div>
+  <div class="row">
+    <a id="xVisits" href="#">Descargar visitas.xlsx</a> |
+    <a id="xPins" href="#">Descargar pines.xlsx</a>
+  </div>
+<script>
+let token=null;
+login.onclick = async ()=>{
+  const password = document.getElementById('password').value;
+  const r = await fetch('/admin/login',{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({password})});
+  if (r.ok){ token=(await r.json()).token; alert('OK'); } else alert('Error');
+};
+save.onclick = async ()=>{
+  if(!token) return alert('Login primero');
+  const body = { center_lat: parseFloat(lat.value), center_lng: parseFloat(lng.value), zoom: parseInt(zoom.value,10) };
+  const r = await fetch('/admin/config',{method:'POST', headers:{'Content-Type':'application/json', Authorization:'Bearer '+token}, body: JSON.stringify(body)});
+  alert(r.ok?'Guardado':'Error');
+};
+xVisits.addEventListener('click', (e)=>{
+  e.preventDefault();
+  if(!token){ alert('Login'); return; }
+  fetch('/admin/export/visits.xlsx', {headers:{Authorization:'Bearer '+token}})
+    .then(r=>r.blob()).then(b=>{
+      const url = URL.createObjectURL(b);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'visitas.xlsx'; a.click();
+      URL.revokeObjectURL(url);
+    });
+});
+xPins.addEventListener('click', (e)=>{
+  e.preventDefault();
+  if(!token){ alert('Login'); return; }
+  fetch('/admin/export/pins.xlsx', {headers:{Authorization:'Bearer '+token}})
+    .then(r=>r.blob()).then(b=>{
+      const url = URL.createObjectURL(b);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'pines.xlsx'; a.click();
+      URL.revokeObjectURL(url);
+    });
+});
+</script>
+</body>
+</html>
