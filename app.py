@@ -1,148 +1,206 @@
-from flask import Flask, request, jsonify, send_file, send_from_directory
-from flask_cors import CORS
-import sqlite3, os, datetime, io, jwt, openpyxl, json, sys
+import os
+import sqlite3
+from datetime import datetime
+from functools import wraps
+from io import BytesIO
 
-SECRET = os.getenv("ADMIN_SECRET", "cambia-esto")
-DB_PATH = "db.sqlite"
-WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
+import pandas as pd
+from flask import (
+    Flask, render_template, request, jsonify, send_file, g,
+    redirect, url_for, session, flash
+)
+from werkzeug.security import generate_password_hash, check_password_hash
 
-app = Flask(__name__, static_folder=None)  # desactivamos static por defecto
-CORS(app)
+BASE_DIR = os.path.dirname(__file__)
+DB_PATH = os.path.join(BASE_DIR, "pines.db")
+
+app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "cambia_esta_llave_supersecreta")
+
+# -----------------------
+# DB helpers
+# -----------------------
+def get_db():
+    if "db" not in g:
+        g.db = sqlite3.connect(DB_PATH, check_same_thread=False)
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+@app.teardown_appcontext
+def close_db(exception):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
 
 def init_db():
-    schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.sql")
-    with sqlite3.connect(DB_PATH) as con:
-        with open(schema_path, "r", encoding="utf-8") as f:
-            con.executescript(f.read())
+    db = get_db()
+    # Tabla de pines
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS pins (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo TEXT,
+            descripcion TEXT,
+            lon REAL NOT NULL,
+            lat REAL NOT NULL,
+            creado_en TEXT NOT NULL
+        )
+    """)
+    # Tabla de usuarios con rol
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL CHECK(role IN ('admin','user'))
+        )
+    """)
+    db.commit()
 
-def query_db(q, args=(), one=False):
-    con = sqlite3.connect(DB_PATH)
-    con.row_factory = sqlite3.Row
-    cur = con.execute(q, args)
-    rv = cur.fetchall()
-    cur.close()
-    con.commit()
-    con.close()
-    return (rv[0] if rv else None) if one else rv
+# -----------------------
+# Decoradores de auth
+# -----------------------
+def login_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Inicia sesión para continuar.", "warn")
+            return redirect(url_for("login", next=request.path))
+        return f(*args, **kwargs)
+    return wrapper
 
-# ---- Rutas de prueba / salud ----
-@app.route("/health")
-def health():
-    return {"ok": True, "web_dir": WEB_DIR, "exists": os.path.isfile(os.path.join(WEB_DIR, "index.html"))}
+def admin_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            flash("Inicia sesión para continuar.", "warn")
+            return redirect(url_for("login", next=request.path))
+        if session.get("role") != "admin":
+            flash("Requiere rol de administrador.", "error")
+            return redirect(url_for("index"))
+        return f(*args, **kwargs)
+    return wrapper
 
-# ---- Frontend (sirve la SPA desde /web) ----
+# -----------------------
+# Rutas
+# -----------------------
 @app.route("/")
-def root():
-    # sirve .../web/index.html explícitamente
-    return send_from_directory(WEB_DIR, "index.html")
+def index():
+    init_db()
+    return render_template("index.html", user=session.get("username"), role=session.get("role"))
 
-@app.route("/<path:filename>")
-def static_files(filename):
-    # sirve cualquier archivo dentro de /web (index.html, app.js, admin.html, etc.)
-    return send_from_directory(WEB_DIR, filename)
-
-# ---- API ----
-@app.route("/config", methods=["GET"])
-def get_config():
-    row = query_db("SELECT center_lat, center_lng, zoom FROM config WHERE id=1", one=True)
-    return jsonify(dict(row))
-
-def require_admin_token():
-    token = request.headers.get("Authorization", "").replace("Bearer ", "")
-    try:
-        jwt.decode(token, SECRET, algorithms=["HS256"])
-        return True
-    except Exception:
-        return False
-
-@app.route("/admin/config", methods=["POST"])
-def update_config():
-    if not require_admin_token():
-        return jsonify({"error":"invalid token"}), 401
-    data = request.json
-    query_db("UPDATE config SET center_lat=?, center_lng=?, zoom=?, updated_at=datetime('now') WHERE id=1",
-             (data["center_lat"], data["center_lng"], data["zoom"]))
-    return {"ok": True}
-
-@app.route("/pins", methods=["GET"])
+# --- API pins públicas (colocar pines y verlos)
+@app.route("/api/pins", methods=["GET"])
 def get_pins():
-    rows = query_db("SELECT * FROM pins")
-    return jsonify([dict(r) for r in rows])
+    db = get_db()
+    rows = db.execute("SELECT id, titulo, descripcion, lon, lat, creado_en FROM pins ORDER BY id DESC").fetchall()
+    data = [dict(r) for r in rows]
+    return jsonify(data), 200
 
-@app.route("/pins", methods=["POST"])
+@app.route("/api/pins", methods=["POST"])
 def add_pin():
-    d = request.json
-    meta_json = json.dumps(d.get("meta", {}), ensure_ascii=False)
-    with sqlite3.connect(DB_PATH) as con:
-        cur = con.execute("INSERT INTO pins(type,lat,lng,meta) VALUES(?,?,?,?)",
-                          (d["type"], d["lat"], d["lng"], meta_json))
-        pid = cur.lastrowid
-        con.commit()
-    return {"id": pid}
+    payload = request.get_json(force=True)
+    lon = payload.get("lon")
+    lat = payload.get("lat")
+    titulo = (payload.get("titulo") or "").strip()
+    descripcion = (payload.get("descripcion") or "").strip()
 
-@app.route("/pins/<int:pid>", methods=["PUT"])
-def update_pin(pid):
-    d = request.json
-    meta = d.get("meta")
-    meta_json = json.dumps(meta, ensure_ascii=False) if meta is not None else None
-    query_db("UPDATE pins SET type=COALESCE(?,type), lat=COALESCE(?,lat), lng=COALESCE(?,lng), meta=COALESCE(?,meta) WHERE id=?",
-             (d.get("type"), d.get("lat"), d.get("lng"), meta_json, pid))
-    return {"ok": True}
+    if lon is None or lat is None:
+        return jsonify({"error": "Faltan coordenadas lon/lat"}), 400
 
-@app.route("/visit", methods=["POST"])
-def add_visit():
-    d = request.json
-    query_db("INSERT INTO visits(user_hash,name,age,date,device_hint) VALUES(?,?,?,?,?)",
-             (d["user_hash"], d["name"], d["age"], d["date"], d.get("device_hint","")))
-    return {"ok": True}
+    db = get_db()
+    db.execute(
+        "INSERT INTO pins (titulo, descripcion, lon, lat, creado_en) VALUES (?, ?, ?, ?, ?)",
+        (titulo, descripcion, float(lon), float(lat), datetime.now().isoformat(timespec="seconds"))
+    )
+    db.commit()
 
-@app.route("/admin/login", methods=["POST"])
-def admin_login():
-    password = request.json.get("password")
-    if password == SECRET:
-        token = jwt.encode({"role":"admin","exp":datetime.datetime.utcnow()+datetime.timedelta(hours=8)},
-                           SECRET, algorithm="HS256")
-        return {"token": token}
-    return {"error":"bad password"}, 401
+    new_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+    return jsonify({"ok": True, "id": new_id}), 201
 
-@app.route("/admin/export/<string:what>.xlsx", methods=["GET"])
-def export_excel(what):
-    if not require_admin_token():
-        return {"error":"invalid token"}, 401
+# --- Exportar Excel (solo admin)
+@app.route("/exportar/excel", methods=["GET"])
+@admin_required
+def export_excel():
+    db = get_db()
+    df = pd.read_sql_query("SELECT id, titulo, descripcion, lon, lat, creado_en FROM pins ORDER BY id", db)
 
-    con = sqlite3.connect(DB_PATH)
-    cur = con.cursor()
-    if what=="visits":
-        cur.execute("SELECT * FROM visits ORDER BY id DESC")
-    else:
-        cur.execute("SELECT * FROM pins ORDER BY id DESC")
-    rows = cur.fetchall()
-    cols = [d[0] for d in cur.description]
-    con.close()
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        df.to_excel(writer, sheet_name="Pines", index=False)
+        wb = writer.book
+        ws = writer.sheets["Pines"]
+        for idx, col in enumerate(df.columns):
+            max_len = max([len(str(x)) for x in df[col].astype(str).values] + [len(col)])
+            ws.set_column(idx, idx, min(max_len + 2, 40))
+    output.seek(0)
 
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = what
-    ws.append(cols)
-    for r in rows:
-        ws.append(list(r))
-
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    return send_file(buf, as_attachment=True, download_name=f"{what}.xlsx",
+    filename = f"pines_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return send_file(output, as_attachment=True, download_name=filename,
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# ---- 404 handler con pista en consola ----
-@app.errorhandler(404)
-def not_found(e):
-    # imprime pista en consola
-    print(f"[404] No encontrado. WEB_DIR={WEB_DIR} index_exists={os.path.isfile(os.path.join(WEB_DIR,'index.html'))}", file=sys.stderr, flush=True)
-    return "404 Not Found", 404
-
-if __name__=="__main__":
-    # Inicializa BD y muestra info útil
+# --- Auth: registro admin, login, logout
+@app.route("/admin/registro", methods=["GET", "POST"])
+def admin_register():
+    """
+    Registra un ADMIN. Política:
+      - Si NO existe ningún admin, cualquiera puede crear el primero.
+      - Si ya existe admin, solo un admin logueado puede crear más admins.
+    """
     init_db()
-    print(f"WEB_DIR: {WEB_DIR}")
-    print(f"index.html existe? {os.path.isfile(os.path.join(WEB_DIR, 'index.html'))}")
+    db = get_db()
+    existing_admin = db.execute("SELECT COUNT(1) c FROM users WHERE role='admin'").fetchone()["c"]
+
+    if existing_admin > 0 and session.get("role") != "admin":
+        flash("Ya existe un administrador. Pídele que te cree una cuenta o inicia sesión.", "warn")
+        return redirect(url_for("login"))
+
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+        if not username or not password:
+            flash("Usuario y contraseña son obligatorios.", "error")
+            return render_template("admin_register.html")
+
+        pw_hash = generate_password_hash(password)
+        try:
+            db.execute(
+                "INSERT INTO users (username, password_hash, role) VALUES (?,?,?)",
+                (username, pw_hash, "admin")
+            )
+            db.commit()
+            flash("Administrador creado correctamente. Ahora puedes iniciar sesión.", "ok")
+            return redirect(url_for("login"))
+        except sqlite3.IntegrityError:
+            flash("Ese usuario ya existe.", "error")
+
+    return render_template("admin_register.html")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    init_db()
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+
+        db = get_db()
+        row = db.execute("SELECT id, username, password_hash, role FROM users WHERE username=?", (username,)).fetchone()
+        if row and check_password_hash(row["password_hash"], password):
+            session["user_id"] = row["id"]
+            session["username"] = row["username"]
+            session["role"] = row["role"]
+            flash("Sesión iniciada.", "ok")
+            dest = request.args.get("next") or url_for("index")
+            return redirect(dest)
+        else:
+            flash("Usuario o contraseña inválidos.", "error")
+
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("Sesión cerrada.", "ok")
+    return redirect(url_for("index"))
+
+if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000, debug=True)
