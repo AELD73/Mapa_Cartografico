@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Iniciar sesión</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, Arial; margin: 0; background: #f6f7fb; }
+    .card { max-width: 360px; margin: 12vh auto; background: #fff; padding: 18px 20px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.08); }
+    h2 { margin: 0 0 12px 0; }
+    label { display:block; margin-top:8px; font-weight:600; }
+    input { width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; margin-top:4px; }
+    button { margin-top:14px; padding:10px; width:100%; border:0; border-radius:8px; background:#111; color:#fff; cursor:pointer; }
+    a { display:inline-block; margin-top:10px; text-decoration:none; color:#1f5fd0; }
+    .msg { color:#b00; font-size: 13px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Iniciar sesión</h2>
+
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+        {% for cat, m in msgs %}
+          <div class="msg">{{ m }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('login', next=request.args.get('next')) }}">
+      <label>Usuario</label>
+      <input type="text" name="username" required>
+      <label>Contraseña</label>
+      <input type="password" name="password" required>
+      <button type="submit">Entrar</button>
+    </form>
+
+    <a href="{{ url_for('admin_register') }}">Registrar administrador</a> |
+    <a href="{{ url_for('index') }}">Volver al mapa</a>
+  </div>
+</body>
+</html>
