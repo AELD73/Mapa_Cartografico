@@ -3,8 +3,8 @@ import sqlite3
 from datetime import datetime
 from functools import wraps
 from io import BytesIO
-import pandas as pd
 
+import pandas as pd
 from flask import (
     Flask, render_template, request, jsonify, send_file, g,
     redirect, url_for, session, flash
@@ -34,7 +34,7 @@ def close_db(exception):
 
 def init_db():
     db = get_db()
-    # Tabla de pines
+    # Pines
     db.execute("""
         CREATE TABLE IF NOT EXISTS pins (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +45,7 @@ def init_db():
             creado_en TEXT NOT NULL
         )
     """)
-    # Tabla de usuarios con rol
+    # Usuarios
     db.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,10 +54,20 @@ def init_db():
             role TEXT NOT NULL CHECK(role IN ('admin','user'))
         )
     """)
+    # Settings
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            center_lon REAL NOT NULL DEFAULT -99.1332,
+            center_lat REAL NOT NULL DEFAULT 19.4326,
+            zoom REAL NOT NULL DEFAULT 12
+        )
+    """)
+    db.execute("INSERT OR IGNORE INTO settings (id) VALUES (1)")
     db.commit()
 
 # -----------------------
-# Decoradores de auth
+# Decoradores
 # -----------------------
 def login_required(f):
     @wraps(f)
@@ -81,20 +91,62 @@ def admin_required(f):
     return wrapper
 
 # -----------------------
-# Rutas
+# Rutas principales
 # -----------------------
 @app.route("/")
 def index():
     init_db()
     return render_template("index.html", user=session.get("username"), role=session.get("role"))
 
-# --- API pins públicas (colocar pines y verlos)
+# -----------------------
+# API Pines
+# -----------------------
 @app.route("/api/pins", methods=["GET"])
 def get_pins():
     db = get_db()
-    rows = db.execute("SELECT id, titulo, descripcion, lon, lat, creado_en FROM pins ORDER BY id DESC").fetchall()
-    data = [dict(r) for r in rows]
-    return jsonify(data), 200
+    q = "SELECT id, titulo, descripcion, lon, lat, creado_en FROM pins"
+    params, clauses = [], []
+
+    date_str = request.args.get("date")
+    start = request.args.get("start")
+    end = request.args.get("end")
+    month = request.args.get("month")
+    year  = request.args.get("year")
+
+    if date_str:
+        clauses.append("strftime('%Y-%m-%d', creado_en) = ?")
+        try: params.append(datetime.fromisoformat(date_str).date().isoformat())
+        except ValueError: return jsonify({"error": "date inválida (YYYY-MM-DD)"}), 400
+
+    if month:
+        try:
+            y, m = month.split("-")
+            datetime(int(y), int(m), 1)
+        except Exception:
+            return jsonify({"error": "month inválido (YYYY-MM)"}), 400
+        clauses.append("strftime('%Y-%m', creado_en) = ?")
+        params.append(month)
+
+    if year:
+        if not (year.isdigit() and len(year) == 4):
+            return jsonify({"error": "year inválido (YYYY)"}), 400
+        clauses.append("strftime('%Y', creado_en) = ?")
+        params.append(year)
+
+    if start or end:
+        if start:
+            try: datetime.fromisoformat(start)
+            except ValueError: return jsonify({"error": "start inválida (YYYY-MM-DD)"}), 400
+            clauses.append("date(creado_en) >= ?"); params.append(start)
+        if end:
+            try: datetime.fromisoformat(end)
+            except ValueError: return jsonify({"error": "end inválida (YYYY-MM-DD)"}), 400
+            clauses.append("date(creado_en) <= ?"); params.append(end)
+
+    if clauses: q += " WHERE " + " AND ".join(clauses)
+    q += " ORDER BY id DESC"
+    rows = db.execute(q, params).fetchall()
+    return jsonify([dict(r) for r in rows]), 200
 
 @app.route("/api/pins", methods=["POST"])
 def add_pin():
@@ -113,45 +165,148 @@ def add_pin():
         (titulo, descripcion, float(lon), float(lat), datetime.now().isoformat(timespec="seconds"))
     )
     db.commit()
-
     new_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
     return jsonify({"ok": True, "id": new_id}), 201
 
-# --- Exportar Excel (solo admin)
+# -----------------------
+# API Settings
+# -----------------------
+@app.route("/api/settings", methods=["GET"])
+def get_settings():
+    db = get_db()
+    row = db.execute("SELECT center_lon, center_lat, zoom FROM settings WHERE id=1").fetchone()
+    return jsonify(dict(row)), 200
+
+@app.route("/api/settings", methods=["POST"])
+@admin_required
+def save_settings():
+    data = request.get_json(force=True)
+    try:
+        lon = float(data.get("center_lon"))
+        lat = float(data.get("center_lat"))
+        zoom = float(data.get("zoom"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Valores inválidos"}), 400
+
+    db = get_db()
+    db.execute("UPDATE settings SET center_lon=?, center_lat=?, zoom=? WHERE id=1", (lon, lat, zoom))
+    db.commit()
+    return jsonify({"ok": True}), 200
+
+# -----------------------
+# Exportar Excel
+# -----------------------
 @app.route("/exportar/excel", methods=["GET"])
 @admin_required
 def export_excel():
     db = get_db()
-    df = pd.read_sql_query("SELECT id, titulo, descripcion, lon, lat, creado_en FROM pins ORDER BY id", db)
+    date_str = request.args.get("date")
+    start = request.args.get("start")
+    end = request.args.get("end")
+    month = request.args.get("month")
+    year  = request.args.get("year")
+
+    base = "SELECT id, titulo, descripcion, lon, lat, creado_en FROM pins"
+    params, clauses = [], []
+
+    if date_str:
+        try: datetime.fromisoformat(date_str)
+        except ValueError: return "date inválida (YYYY-MM-DD)", 400
+        clauses.append("strftime('%Y-%m-%d', creado_en) = ?"); params.append(date_str)
+
+    if month:
+        try:
+            y, m = month.split("-")
+            datetime(int(y), int(m), 1)
+        except Exception:
+            return "month inválido (YYYY-MM)", 400
+        clauses.append("strftime('%Y-%m', creado_en) = ?"); params.append(month)
+
+    if year:
+        if not (year.isdigit() and len(year) == 4):
+            return "year inválido (YYYY)", 400
+        clauses.append("strftime('%Y', creado_en) = ?"); params.append(year)
+
+    if start or end:
+        if start:
+            try: datetime.fromisoformat(start)
+            except ValueError: return "start inválida (YYYY-MM-DD)", 400
+            clauses.append("date(creado_en) >= ?"); params.append(start)
+        if end:
+            try: datetime.fromisoformat(end)
+            except ValueError: return "end inválida (YYYY-MM-DD)", 400
+            clauses.append("date(creado_en) <= ?"); params.append(end)
+
+    where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+    df = pd.read_sql_query(base + where + " ORDER BY id", db, params=params)
 
     output = BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         df.to_excel(writer, sheet_name="Pines", index=False)
-        wb = writer.book
         ws = writer.sheets["Pines"]
-        for idx, col in enumerate(df.columns):
-            max_len = max([len(str(x)) for x in df[col].astype(str).values] + [len(col)])
-            ws.set_column(idx, idx, min(max_len + 2, 40))
+        for i, col in enumerate(df.columns):
+            width = min(max([len(str(x)) for x in df[col].astype(str).values] + [len(col)]) + 2, 40)
+            ws.set_column(i, i, width)
     output.seek(0)
 
-    filename = f"pines_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    kind = (
+        f"dia_{date_str}" if date_str else
+        f"mes_{month}" if month else
+        f"anio_{year}" if year else
+        (f"{start}_a_{end}" if (start or end) else "todo")
+    )
+    filename = f"pines_{kind}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     return send_file(output, as_attachment=True, download_name=filename,
                      mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-# --- Auth: registro admin, login, logout
+# -----------------------
+# Vistas de administración
+# -----------------------
+@app.route("/admin")
+@admin_required
+def admin_panel():
+    db = get_db()
+    admins = db.execute("SELECT id, username FROM users WHERE role='admin' ORDER BY username").fetchall()
+    s = db.execute("SELECT center_lon, center_lat, zoom FROM settings WHERE id=1").fetchone()
+    return render_template("admin_panel.html", admins=admins, settings=s)
+
+@app.route("/admin/create", methods=["POST"])
+@admin_required
+def admin_create():
+    username = (request.form.get("username") or "").strip()
+    password = request.form.get("password") or ""
+    if not username or not password:
+        flash("Usuario y contraseña son obligatorios.", "error")
+        return redirect(url_for("admin_panel"))
+    pw_hash = generate_password_hash(password)
+    db = get_db()
+    try:
+        db.execute("INSERT INTO users (username, password_hash, role) VALUES (?,?,?)",
+                   (username, pw_hash, "admin"))
+        db.commit()
+        flash("Administrador creado.", "ok")
+    except sqlite3.IntegrityError:
+        flash("Ese usuario ya existe.", "error")
+    return redirect(url_for("admin_panel"))
+
+@app.route("/admin/main")
+@admin_required
+def main_admin():
+    db = get_db()
+    s = db.execute("SELECT center_lon, center_lat, zoom FROM settings WHERE id=1").fetchone()
+    return render_template("main_admin.html", settings=s, user=session.get("username"))
+
+# -----------------------
+# Registro/Login
+# -----------------------
 @app.route("/admin/registro", methods=["GET", "POST"])
 def admin_register():
-    """
-    Registra un ADMIN. Política:
-      - Si NO existe ningún admin, cualquiera puede crear el primero.
-      - Si ya existe admin, solo un admin logueado puede crear más admins.
-    """
     init_db()
     db = get_db()
     existing_admin = db.execute("SELECT COUNT(1) c FROM users WHERE role='admin'").fetchone()["c"]
 
     if existing_admin > 0 and session.get("role") != "admin":
-        flash("Ya existe un administrador. Pídele que te cree una cuenta o inicia sesión.", "warn")
+        flash("Ya existe un administrador. Inicia sesión o pide alta.", "warn")
         return redirect(url_for("login"))
 
     if request.method == "POST":
@@ -163,12 +318,10 @@ def admin_register():
 
         pw_hash = generate_password_hash(password)
         try:
-            db.execute(
-                "INSERT INTO users (username, password_hash, role) VALUES (?,?,?)",
-                (username, pw_hash, "admin")
-            )
+            db.execute("INSERT INTO users (username, password_hash, role) VALUES (?,?,?)",
+                       (username, pw_hash, "admin"))
             db.commit()
-            flash("Administrador creado correctamente. Ahora puedes iniciar sesión.", "ok")
+            flash("Administrador creado. Ya puedes iniciar sesión.", "ok")
             return redirect(url_for("login"))
         except sqlite3.IntegrityError:
             flash("Ese usuario ya existe.", "error")
@@ -202,5 +355,8 @@ def logout():
     flash("Sesión cerrada.", "ok")
     return redirect(url_for("index"))
 
+# -----------------------
+# Main
+# -----------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000, debug=True)

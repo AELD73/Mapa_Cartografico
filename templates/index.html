@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Mapa con MapLibre (pins + BD + Excel + Admin)</title>
+  <title>Mapa (MapLibre) + filtros</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet"/>
   <style>
@@ -11,19 +11,12 @@
     .panel {
       position: absolute; top: 10px; left: 10px; z-index: 10;
       background: #ffffffdd; padding: 10px; border-radius: 8px; font-family: system-ui, Arial;
-      box-shadow: 0 4px 16px rgba(0,0,0,.15); min-width: 220px;
+      box-shadow: 0 4px 16px rgba(0,0,0,.15); min-width: 260px;
     }
-    .panel h3 { margin: 0 0 8px 0; font-size: 16px; }
-    .panel button, .panel a.btn {
-      padding: 6px 10px; border-radius: 6px; border: 1px solid #ccc; cursor: pointer; display:inline-block; text-decoration:none; color:#111;
-      background:#fff;
-    }
+    .panel h3 { margin: 0 0 8px; font-size: 16px; }
     .panel .row { display:flex; gap:8px; flex-wrap: wrap; margin-bottom:6px; }
-    .popup-form { font: 12px/1.3 system-ui, Arial; width: 220px; }
-    .popup-form label { display:block; margin-top:6px; font-weight:600; }
-    .popup-form input, .popup-form textarea { width:100%; box-sizing:border-box; padding:6px; border:1px solid #ccc; border-radius:6px; }
-    .popup-form .actions { margin-top:8px; display:flex; gap:6px; justify-content:flex-end; }
-    .maplibregl-popup-content { padding: 8px 10px 10px; }
+    .panel input[type="date"] { padding:4px 6px; }
+    .panel button, .panel a.btn { padding:6px 10px; border-radius:6px; border:1px solid #ccc; background:#fff; cursor:pointer; text-decoration:none; color:#111; }
     .badge { font-size:11px; color:#444; }
   </style>
 </head>
@@ -33,12 +26,26 @@
 
     <div class="row">
       {% if role == 'admin' %}
-        <button onclick="descargarExcel()">Descargar Excel</button>
+        <a class="btn" href="{{ url_for('admin_panel') }}">Panel admin</a>
       {% endif %}
       <button onclick="location.reload()">Recargar</button>
     </div>
 
+    {% if role == 'admin' %}
+    <div style="font-size:13px;margin:6px 0 2px;">Descargar por fecha</div>
     <div class="row">
+      <input type="date" id="d1">
+      <button onclick="descargarDia()">Descargar día</button>
+    </div>
+    <div style="font-size:13px;margin:6px 0 2px;">Descargar por rango</div>
+    <div class="row">
+      <input type="date" id="rStart">
+      <input type="date" id="rEnd">
+      <button onclick="descargarRango()">Descargar rango</button>
+    </div>
+    {% endif %}
+
+    <div class="row" style="margin-top:6px">
       {% if user %}
         <span class="badge">Sesión: <strong>{{ user }}</strong> ({{ role }})</span>
         <a class="btn" href="{{ url_for('logout') }}">Cerrar sesión</a>
@@ -55,18 +62,78 @@
 
   <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
   <script>
-    const map = new maplibregl.Map({
-      container: 'map',
-      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-      center: [-99.1332, 19.4326],
-      zoom: 12
-    });
+    let map;
+    init();
 
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    async function init() {
+      // Obtiene center/zoom desde el backend
+      const s = await fetch('/api/settings').then(r => r.json());
 
-    map.on('load', async () => {
-      await cargarPinesExistentes();
-    });
+      map = new maplibregl.Map({
+        container: 'map',
+        style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+        center: [s.center_lon, s.center_lat],
+        zoom: s.zoom
+      });
+
+      map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+      map.on('load', async () => {
+        await cargarPinesExistentes();
+      });
+
+      // Crear pin con popup/guardar
+      map.on('click', (e) => {
+        const { lng, lat } = e.lngLat;
+        const popup = new maplibregl.Popup({ offset: 24 })
+          .setLngLat([lng, lat])
+          .setHTML(`
+            <div style="font: 12px/1.3 system-ui, Arial; width: 220px;">
+              <div><strong>Nueva marca</strong></div>
+              <label style="display:block;margin-top:6px;font-weight:600;">Título</label>
+              <input type="text" id="titulo" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;">
+              <label style="display:block;margin-top:6px;font-weight:600;">Descripción</label>
+              <textarea id="descripcion" rows="3" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;"></textarea>
+              <div style="margin-top:6px; font-size:11px; color:#555">Lon: ${lng.toFixed(6)} | Lat: ${lat.toFixed(6)}</div>
+              <div style="margin-top:8px; display:flex; gap:6px; justify-content:flex-end;">
+                <button id="guardar" style="padding:6px 10px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;">Guardar</button>
+              </div>
+            </div>
+          `)
+          .addTo(map);
+
+        popup.on('open', () => {
+          const btn = document.getElementById('guardar');
+          if (btn) {
+            btn.addEventListener('click', async () => {
+              const titulo = document.getElementById('titulo')?.value.trim() || '';
+              const descripcion = document.getElementById('descripcion')?.value.trim() || '';
+              try {
+                const resp = await fetch('/api/pins', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ lon: lng, lat: lat, titulo, descripcion })
+                });
+                if (!resp.ok) {
+                  const err = await resp.json().catch(() => ({}));
+                  alert('Error al guardar: ' + (err.error || resp.status));
+                  return;
+                }
+                new maplibregl.Marker()
+                  .setLngLat([lng, lat])
+                  .setPopup(new maplibregl.Popup({ offset: 24 })
+                    .setHTML(`<strong>${esc(titulo || 'Sin título')}</strong><br>${esc(descripcion || '')}<br><small>guardado ahora</small>`))
+                  .addTo(map);
+                popup.remove();
+              } catch (e) {
+                console.error(e);
+                alert('No se pudo guardar el pin.');
+              }
+            });
+          }
+        });
+      });
+    }
 
     async function cargarPinesExistentes() {
       try {
@@ -84,60 +151,20 @@
       }
     }
 
-    map.on('click', (e) => {
-      const { lng, lat } = e.lngLat;
-      const popup = new maplibregl.Popup({ offset: 24 })
-        .setLngLat([lng, lat])
-        .setHTML(`
-          <div class="popup-form">
-            <div><strong>Nueva marca</strong></div>
-            <label>Título</label>
-            <input type="text" id="titulo">
-            <label>Descripción</label>
-            <textarea id="descripcion" rows="3"></textarea>
-            <div style="margin-top:6px; font-size:11px; color:#555">Lon: ${lng.toFixed(6)} | Lat: ${lat.toFixed(6)}</div>
-            <div class="actions">
-              <button id="guardar">Guardar</button>
-            </div>
-          </div>
-        `)
-        .addTo(map);
-
-      popup.on('open', () => {
-        const btn = document.getElementById('guardar');
-        if (btn) {
-          btn.addEventListener('click', async () => {
-            const titulo = document.getElementById('titulo')?.value.trim() || '';
-            const descripcion = document.getElementById('descripcion')?.value.trim() || '';
-
-            try {
-              const resp = await fetch('/api/pins', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lon: lng, lat: lat, titulo, descripcion })
-              });
-              if (!resp.ok) {
-                const err = await resp.json().catch(() => ({}));
-                alert('Error al guardar: ' + (err.error || resp.status));
-                return;
-              }
-              new maplibregl.Marker()
-                .setLngLat([lng, lat])
-                .setPopup(new maplibregl.Popup({ offset: 24 })
-                  .setHTML(`<strong>${esc(titulo || 'Sin título')}</strong><br>${esc(descripcion || '')}<br><small>guardado ahora</small>`))
-                .addTo(map);
-              popup.remove();
-            } catch (e) {
-              console.error(e);
-              alert('No se pudo guardar el pin.');
-            }
-          });
-        }
-      });
-    });
-
-    function descargarExcel() {
-      window.location.href = '/exportar/excel';
+    // Descargas (solo admin en UI)
+    function descargarDia() {
+      const d = document.getElementById('d1').value;
+      if (!d) { alert('Elige una fecha'); return; }
+      window.location.href = '/exportar/excel?date=' + d;
+    }
+    function descargarRango() {
+      const a = document.getElementById('rStart').value;
+      const b = document.getElementById('rEnd').value;
+      if (!a && !b) { alert('Elige al menos una fecha'); return; }
+      const qs = new URLSearchParams();
+      if (a) qs.append('start', a);
+      if (b) qs.append('end', b);
+      window.location.href = '/exportar/excel?' + qs.toString();
     }
 
     function esc(s) {
