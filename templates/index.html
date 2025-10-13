@@ -1,180 +1,315 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <title>Mapa (MapLibre) + filtros</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet"/>
-  <style>
-    html, body { height: 100%; margin: 0; }
-    #map { width: 100%; height: 100vh; }
-    .panel {
-      position: absolute; top: 10px; left: 10px; z-index: 10;
-      background: #ffffffdd; padding: 10px; border-radius: 8px; font-family: system-ui, Arial;
-      box-shadow: 0 4px 16px rgba(0,0,0,.15); min-width: 260px;
-    }
-    .panel h3 { margin: 0 0 8px; font-size: 16px; }
-    .panel .row { display:flex; gap:8px; flex-wrap: wrap; margin-bottom:6px; }
-    .panel input[type="date"] { padding:4px 6px; }
-    .panel button, .panel a.btn { padding:6px 10px; border-radius:6px; border:1px solid #ccc; background:#fff; cursor:pointer; text-decoration:none; color:#111; }
-    .badge { font-size:11px; color:#444; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa UAM Azcapotzalco con Emojis</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+       
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+       
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            height: calc(100vh - 40px);
+        }
+       
+        .sidebar {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow: hidden;
+        }
+       
+        .header {
+            text-align: center;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+       
+        .header h1 {
+            color: #1e40af;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+       
+        .header p {
+            color: #4b5563;
+            font-size: 0.9rem;
+        }
+       
+        .emoji-selector {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            padding: 15px 0;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+       
+        .emoji-item {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 1.8rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+       
+        .emoji-item:hover {
+            transform: translateY(-2px);
+            border-color: #3b82f6;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+        }
+       
+        .emoji-item.selected {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+            transform: scale(1.1);
+        }
+       
+        .instructions {
+            background: #eff6ff;
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 0.9rem;
+            color: #1e40af;
+        }
+       
+        .instructions h3 {
+            margin-bottom: 8px;
+            color: #1e3a8a;
+        }
+       
+        .instructions ul {
+            padding-left: 20px;
+            margin-top: 8px;
+        }
+       
+        .instructions li {
+            margin-bottom: 5px;
+        }
+       
+        #map-container {
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            background: white;
+        }
+       
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+       
+        .status-bar {
+            background: white;
+            padding: 10px 20px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+        }
+       
+        .status-bar span {
+            font-weight: 600;
+            color: #1e40af;
+        }
+       
+        .pin-count {
+            background: #3b82f6;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+       
+        /* Custom marker styles - simplified */
+        .emoji-marker {
+            font-size: 28px;
+            width: auto;
+            height: auto;
+            line-height: 1;
+            text-align: center;
+            pointer-events: none;
+        }
+       
+        /* Scrollbar styling */
+        .emoji-selector::-webkit-scrollbar {
+            width: 6px;
+        }
+       
+        .emoji-selector::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+       
+        .emoji-selector::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+       
+        .emoji-selector::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
 </head>
 <body>
-  <div class="panel">
-    <h3>Acciones</h3>
-
-    <div class="row">
-      {% if role == 'admin' %}
-        <a class="btn" href="{{ url_for('admin_panel') }}">Panel admin</a>
-      {% endif %}
-      <button onclick="location.reload()">Recargar</button>
-    </div>
-
-    {% if role == 'admin' %}
-    <div style="font-size:13px;margin:6px 0 2px;">Descargar por fecha</div>
-    <div class="row">
-      <input type="date" id="d1">
-      <button onclick="descargarDia()">Descargar día</button>
-    </div>
-    <div style="font-size:13px;margin:6px 0 2px;">Descargar por rango</div>
-    <div class="row">
-      <input type="date" id="rStart">
-      <input type="date" id="rEnd">
-      <button onclick="descargarRango()">Descargar rango</button>
-    </div>
-    {% endif %}
-
-    <div class="row" style="margin-top:6px">
-      {% if user %}
-        <span class="badge">Sesión: <strong>{{ user }}</strong> ({{ role }})</span>
-        <a class="btn" href="{{ url_for('logout') }}">Cerrar sesión</a>
-      {% else %}
-        <a class="btn" href="{{ url_for('login') }}">Iniciar sesión</a>
-        <a class="btn" href="{{ url_for('admin_register') }}">Registrar admin</a>
-      {% endif %}
-    </div>
-
-    <div style="margin-top:6px; font-size:12px;">Haz clic en el mapa para crear un pin.</div>
-  </div>
-
-  <div id="map"></div>
-
-  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
-  <script>
-    let map;
-    init();
-
-    async function init() {
-      // Obtiene center/zoom desde el backend
-      const s = await fetch('/api/settings').then(r => r.json());
-
-      map = new maplibregl.Map({
-        container: 'map',
-        style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
-        center: [s.center_lon, s.center_lat],
-        zoom: s.zoom
-      });
-
-      map.addControl(new maplibregl.NavigationControl(), 'top-right');
-
-      map.on('load', async () => {
-        await cargarPinesExistentes();
-      });
-
-      // Crear pin con popup/guardar
-      map.on('click', (e) => {
-        const { lng, lat } = e.lngLat;
-        const popup = new maplibregl.Popup({ offset: 24 })
-          .setLngLat([lng, lat])
-          .setHTML(`
-            <div style="font: 12px/1.3 system-ui, Arial; width: 220px;">
-              <div><strong>Nueva marca</strong></div>
-              <label style="display:block;margin-top:6px;font-weight:600;">Título</label>
-              <input type="text" id="titulo" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;">
-              <label style="display:block;margin-top:6px;font-weight:600;">Descripción</label>
-              <textarea id="descripcion" rows="3" style="width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;"></textarea>
-              <div style="margin-top:6px; font-size:11px; color:#555">Lon: ${lng.toFixed(6)} | Lat: ${lat.toFixed(6)}</div>
-              <div style="margin-top:8px; display:flex; gap:6px; justify-content:flex-end;">
-                <button id="guardar" style="padding:6px 10px;border:1px solid #ccc;border-radius:6px;background:#fff;cursor:pointer;">Guardar</button>
-              </div>
+    <div class="container">
+        <div class="sidebar">
+            <div class="header">
+                <h1>📍 UAM Azcapotzalco</h1>
+                <p>Selecciona un emoji y haz clic en el mapa</p>
             </div>
-          `)
-          .addTo(map);
+           
+            <div class="emoji-selector" id="emojiSelector">
+                <!-- Emojis will be populated by JavaScript -->
+            </div>
+           
+            <div class="instructions">
+                <h3>📋 Instrucciones</h3>
+                <ul>
+                    <li>Selecciona un emoji de la lista</li>
+                    <li>Haz clic en cualquier lugar del mapa</li>
+                    <li>El emoji aparecerá como un pin</li>
+                    <li>Puedes colocar múltiples pins</li>
+                </ul>
+            </div>
+           
+            <div class="status-bar">
+                <span>Pins colocados:</span>
+                <span class="pin-count" id="pinCount">0</span>
+            </div>
+        </div>
+       
+        <div id="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
 
-        popup.on('open', () => {
-          const btn = document.getElementById('guardar');
-          if (btn) {
-            btn.addEventListener('click', async () => {
-              const titulo = document.getElementById('titulo')?.value.trim() || '';
-              const descripcion = document.getElementById('descripcion')?.value.trim() || '';
-              try {
-                const resp = await fetch('/api/pins', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ lon: lng, lat: lat, titulo, descripcion })
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Coordenadas de UAM Azcapotzalco
+        const UAM_AZCAPOTZALCO = [19.5083, -99.1856];
+       
+        // Initialize the map centered on UAM Azcapotzalco
+        const map = L.map('map').setView(UAM_AZCAPOTZALCO, 16);
+       
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+       
+        // Add UAM marker using standard Leaflet marker with emoji
+        const uamIcon = L.divIcon({
+            className: 'emoji-marker',
+            html: '🏛️',
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+        });
+       
+        const uamMarker = L.marker(UAM_AZCAPOTZALCO, { icon: uamIcon }).addTo(map);
+        uamMarker.bindPopup('<b>UAM Azcapotzalco</b><br>Universidad Autónoma Metropolitana');
+       
+        // Emoji array
+        const emojis = [
+            '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
+            '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
+            '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩',
+            '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣',
+            '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬',
+            '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗',
+            '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯',
+            '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐',
+            '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈',
+            '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾',
+            '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿',
+            '😾', '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎',
+            '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟',
+            '💯', '💢', '💥', '💫', '💦', '💨', '🕳️', '💣', '💬', '👁️‍🗨️',
+            '🗨️', '🗯️', '💭', '💤', '👋', '🤚', '🖐️', '✋', '🖖', '👌',
+            '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕'
+        ];
+       
+        // DOM elements
+        const emojiSelector = document.getElementById('emojiSelector');
+        const pinCountElement = document.getElementById('pinCount');
+       
+        // Current selected emoji
+        let selectedEmoji = '📍';
+        let pinCount = 0;
+       
+        // Create emoji selector
+        emojis.forEach(emoji => {
+            const emojiItem = document.createElement('div');
+            emojiItem.className = 'emoji-item';
+            emojiItem.textContent = emoji;
+            emojiItem.addEventListener('click', () => {
+                document.querySelectorAll('.emoji-item').forEach(item => {
+                    item.classList.remove('selected');
                 });
-                if (!resp.ok) {
-                  const err = await resp.json().catch(() => ({}));
-                  alert('Error al guardar: ' + (err.error || resp.status));
-                  return;
-                }
-                new maplibregl.Marker()
-                  .setLngLat([lng, lat])
-                  .setPopup(new maplibregl.Popup({ offset: 24 })
-                    .setHTML(`<strong>${esc(titulo || 'Sin título')}</strong><br>${esc(descripcion || '')}<br><small>guardado ahora</small>`))
-                  .addTo(map);
-                popup.remove();
-              } catch (e) {
-                console.error(e);
-                alert('No se pudo guardar el pin.');
-              }
+                emojiItem.classList.add('selected');
+                selectedEmoji = emoji;
             });
-          }
+            emojiSelector.appendChild(emojiItem);
         });
-      });
-    }
-
-    async function cargarPinesExistentes() {
-      try {
-        const resp = await fetch('/api/pins');
-        const data = await resp.json();
-        data.forEach(p => {
-          new maplibregl.Marker()
-            .setLngLat([p.lon, p.lat])
-            .setPopup(new maplibregl.Popup({ offset: 24 })
-              .setHTML(`<strong>${esc(p.titulo || 'Sin título')}</strong><br>${esc(p.descripcion || '')}<br><small>${p.creado_en}</small>`))
-            .addTo(map);
+       
+        // Select the first emoji by default
+        document.querySelector('.emoji-item').classList.add('selected');
+       
+        // Add click event to map
+        map.on('click', function(e) {
+            // Create div icon with the selected emoji
+            const emojiIcon = L.divIcon({
+                className: 'emoji-marker',
+                html: selectedEmoji,
+                iconSize: [32, 32],
+                iconAnchor: [16, 32] // Anchor at bottom center
+            });
+           
+            const marker = L.marker(e.latlng, { icon: emojiIcon }).addTo(map);
+           
+            pinCount++;
+            pinCountElement.textContent = pinCount;
+           
+            // Add popup
+            marker.bindPopup(`
+                <div style="text-align: center; font-size: 24px; margin-bottom: 8px;">
+                    ${selectedEmoji}
+                </div>
+                <div style="font-size: 12px;">
+                    Lat: ${e.latlng.lat.toFixed(6)}<br>
+                    Lng: ${e.latlng.lng.toFixed(6)}
+                </div>
+            `);
         });
-      } catch (e) {
-        console.error("Error cargando pines:", e);
-      }
-    }
-
-    // Descargas (solo admin en UI)
-    function descargarDia() {
-      const d = document.getElementById('d1').value;
-      if (!d) { alert('Elige una fecha'); return; }
-      window.location.href = '/exportar/excel?date=' + d;
-    }
-    function descargarRango() {
-      const a = document.getElementById('rStart').value;
-      const b = document.getElementById('rEnd').value;
-      if (!a && !b) { alert('Elige al menos una fecha'); return; }
-      const qs = new URLSearchParams();
-      if (a) qs.append('start', a);
-      if (b) qs.append('end', b);
-      window.location.href = '/exportar/excel?' + qs.toString();
-    }
-
-    function esc(s) {
-      return String(s)
-        .replaceAll('&','&amp;')
-        .replaceAll('<','&lt;')
-        .replaceAll('>','&gt;')
-        .replaceAll('"','&quot;')
-        .replaceAll("'",'&#39;');
-    }
-  </script>
+       
+        // Initialize pin count
+        pinCountElement.textContent = pinCount;
+    </script>
 </body>
 </html>
