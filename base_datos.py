@@ -9,7 +9,7 @@ cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
 print("Tablas disponibles:", cursor.fetchall())
 
 # Consultar los usuarios
-cursor.execute("SELECT * FROM pins")
+cursor.execute("SELECT * FROM users")
 usuarios = cursor.fetchall()
 
 print("\nUsuarios registrados:")

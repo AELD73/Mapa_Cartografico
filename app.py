@@ -12,11 +12,11 @@ from flask import (
 from werkzeug.security import generate_password_hash, check_password_hash
 
 BASE_DIR = os.path.dirname(__file__)
-DB_PATH = os.path.join(BASE_DIR, "pines.db")
+DB_PATH = os.path.join(BASE_DIR, "pines.db" )
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "cambia_esta_llave_supersecreta")
-
+1161201
 # -----------------------
 # DB helpers
 # -----------------------
