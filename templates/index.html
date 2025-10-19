@@ -1,315 +1,194 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa UAM Azcapotzalco con Emojis</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-       
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-       
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 20px;
-            height: calc(100vh - 40px);
-        }
-       
-        .sidebar {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            overflow: hidden;
-        }
-       
-        .header {
-            text-align: center;
-            padding-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
-        }
-       
-        .header h1 {
-            color: #1e40af;
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-       
-        .header p {
-            color: #4b5563;
-            font-size: 0.9rem;
-        }
-       
-        .emoji-selector {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 10px;
-            padding: 15px 0;
-            max-height: 350px;
-            overflow-y: auto;
-        }
-       
-        .emoji-item {
-            background: #f8fafc;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 12px;
-            font-size: 1.8rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            user-select: none;
-        }
-       
-        .emoji-item:hover {
-            transform: translateY(-2px);
-            border-color: #3b82f6;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
-        }
-       
-        .emoji-item.selected {
-            background: #3b82f6;
-            color: white;
-            border-color: #3b82f6;
-            transform: scale(1.1);
-        }
-       
-        .instructions {
-            background: #eff6ff;
-            border-radius: 12px;
-            padding: 15px;
-            font-size: 0.9rem;
-            color: #1e40af;
-        }
-       
-        .instructions h3 {
-            margin-bottom: 8px;
-            color: #1e3a8a;
-        }
-       
-        .instructions ul {
-            padding-left: 20px;
-            margin-top: 8px;
-        }
-       
-        .instructions li {
-            margin-bottom: 5px;
-        }
-       
-        #map-container {
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-            background: white;
-        }
-       
-        #map {
-            height: 100%;
-            width: 100%;
-        }
-       
-        .status-bar {
-            background: white;
-            padding: 10px 20px;
-            border-radius: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: auto;
-        }
-       
-        .status-bar span {
-            font-weight: 600;
-            color: #1e40af;
-        }
-       
-        .pin-count {
-            background: #3b82f6;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-        }
-       
-        /* Custom marker styles - simplified */
-        .emoji-marker {
-            font-size: 28px;
-            width: auto;
-            height: auto;
-            line-height: 1;
-            text-align: center;
-            pointer-events: none;
-        }
-       
-        /* Scrollbar styling */
-        .emoji-selector::-webkit-scrollbar {
-            width: 6px;
-        }
-       
-        .emoji-selector::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 3px;
-        }
-       
-        .emoji-selector::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 3px;
-        }
-       
-        .emoji-selector::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mapa UAM Azcapotzalco con Imágenes</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+      min-height:100vh; padding:20px;
+    }
+    .container {
+      max-width:1400px; margin:0 auto; display:grid; grid-template-columns:280px 1fr;
+      gap:20px; height:calc(100vh - 40px);
+    }
+    .sidebar {
+      background:white; border-radius:16px; padding:20px;
+      box-shadow:0 10px 30px rgba(0,0,0,.2);
+      display:flex; flex-direction:column; gap:20px; overflow:hidden;
+    }
+    .header { text-align:center; padding-bottom:15px; border-bottom:2px solid #f0f0f0; }
+    .header h1 { color:#1e40af; font-size:1.5rem; font-weight:700; margin-bottom:5px; }
+    .header p { color:#4b5563; font-size:.9rem; }
+
+    .icon-selector {
+      display:grid; grid-template-columns: repeat(5, 1fr);
+      gap:10px; padding:15px 0; max-height:350px; overflow-y:auto;
+    }
+    .icon-item {
+      background:#f8fafc; border:2px solid #e2e8f0; border-radius:12px;
+      cursor:pointer; padding:8px; transition:.2s ease; user-select:none;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .icon-item:hover { transform: translateY(-2px); border-color:#3b82f6; box-shadow:0 4px 12px rgba(59,130,246,.2); }
+    .icon-item.selected { background:#3b82f6; border-color:#3b82f6; transform:scale(1.03); }
+    .icon-thumb {
+      width:34px; height:34px; object-fit:contain; display:block;
+      filter: drop-shadow(0 1px 1px rgba(0,0,0,.15));
+    }
+
+    .instructions { background:#eff6ff; border-radius:12px; padding:15px; font-size:.9rem; color:#1e40af; }
+    .instructions h3 { margin-bottom:8px; color:#1e3a8a; }
+    .instructions ul { padding-left:20px; margin-top:8px; }
+    .instructions li { margin-bottom:5px; }
+
+    #map-container { border-radius:16px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.2); background:white; }
+    #map { height:100%; width:100%; }
+
+    .status-bar {
+      background:white; padding:10px 20px; border-radius:12px;
+      display:flex; justify-content:space-between; align-items:center; margin-top:auto;
+    }
+    .status-bar span { font-weight:600; color:#1e40af; }
+    .pin-count { background:#3b82f6; color:white; padding:4px 12px; border-radius:20px; font-size:.9rem; }
+
+    .icon-selector::-webkit-scrollbar { width:6px; }
+    .icon-selector::-webkit-scrollbar-track { background:#f1f1f1; border-radius:3px; }
+    .icon-selector::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
+    .icon-selector::-webkit-scrollbar-thumb:hover { background:#94a3b8; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="sidebar">
-            <div class="header">
-                <h1>📍 UAM Azcapotzalco</h1>
-                <p>Selecciona un emoji y haz clic en el mapa</p>
-            </div>
-           
-            <div class="emoji-selector" id="emojiSelector">
-                <!-- Emojis will be populated by JavaScript -->
-            </div>
-           
-            <div class="instructions">
-                <h3>📋 Instrucciones</h3>
-                <ul>
-                    <li>Selecciona un emoji de la lista</li>
-                    <li>Haz clic en cualquier lugar del mapa</li>
-                    <li>El emoji aparecerá como un pin</li>
-                    <li>Puedes colocar múltiples pins</li>
-                </ul>
-            </div>
-           
-            <div class="status-bar">
-                <span>Pins colocados:</span>
-                <span class="pin-count" id="pinCount">0</span>
-            </div>
-        </div>
-       
-        <div id="map-container">
-            <div id="map"></div>
-        </div>
+  <div class="container">
+    <div class="sidebar">
+      <div class="header">
+        <h1>UAM Azcapotzalco</h1>
+        <p>Selecciona un ícono y haz clic en el mapa</p>
+      </div>
+
+      <div class="icon-selector" id="iconSelector"></div>
+
+      <div class="instructions">
+        <h3>📋 Instrucciones</h3>
+        <ul>
+          <li>Selecciona un ícono de la lista</li>
+          <li>Haz clic en cualquier lugar del mapa</li>
+          <li>El ícono aparecerá como un pin</li>
+          <li>Puedes colocar múltiples pins</li>
+        </ul>
+      </div>
+
+      <div class="status-bar">
+        <span>Pins colocados:</span>
+        <span class="pin-count" id="pinCount">0</span>
+      </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        // Coordenadas de UAM Azcapotzalco
-        const UAM_AZCAPOTZALCO = [19.5083, -99.1856];
-       
-        // Initialize the map centered on UAM Azcapotzalco
-        const map = L.map('map').setView(UAM_AZCAPOTZALCO, 16);
-       
-        // Add OpenStreetMap tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
-       
-        // Add UAM marker using standard Leaflet marker with emoji
-        const uamIcon = L.divIcon({
-            className: 'emoji-marker',
-            html: '🏛️',
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
-        });
-       
-        const uamMarker = L.marker(UAM_AZCAPOTZALCO, { icon: uamIcon }).addTo(map);
-        uamMarker.bindPopup('<b>UAM Azcapotzalco</b><br>Universidad Autónoma Metropolitana');
-       
-        // Emoji array
-        const emojis = [
-            '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
-            '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
-            '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩',
-            '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣',
-            '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬',
-            '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗',
-            '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯',
-            '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐',
-            '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈',
-            '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾',
-            '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿',
-            '😾', '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎',
-            '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟',
-            '💯', '💢', '💥', '💫', '💦', '💨', '🕳️', '💣', '💬', '👁️‍🗨️',
-            '🗨️', '🗯️', '💭', '💤', '👋', '🤚', '🖐️', '✋', '🖖', '👌',
-            '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕'
-        ];
-       
-        // DOM elements
-        const emojiSelector = document.getElementById('emojiSelector');
-        const pinCountElement = document.getElementById('pinCount');
-       
-        // Current selected emoji
-        let selectedEmoji = '📍';
-        let pinCount = 0;
-       
-        // Create emoji selector
-        emojis.forEach(emoji => {
-            const emojiItem = document.createElement('div');
-            emojiItem.className = 'emoji-item';
-            emojiItem.textContent = emoji;
-            emojiItem.addEventListener('click', () => {
-                document.querySelectorAll('.emoji-item').forEach(item => {
-                    item.classList.remove('selected');
-                });
-                emojiItem.classList.add('selected');
-                selectedEmoji = emoji;
-            });
-            emojiSelector.appendChild(emojiItem);
-        });
-       
-        // Select the first emoji by default
-        document.querySelector('.emoji-item').classList.add('selected');
-       
-        // Add click event to map
-        map.on('click', function(e) {
-            // Create div icon with the selected emoji
-            const emojiIcon = L.divIcon({
-                className: 'emoji-marker',
-                html: selectedEmoji,
-                iconSize: [32, 32],
-                iconAnchor: [16, 32] // Anchor at bottom center
-            });
-           
-            const marker = L.marker(e.latlng, { icon: emojiIcon }).addTo(map);
-           
-            pinCount++;
-            pinCountElement.textContent = pinCount;
-           
-            // Add popup
-            marker.bindPopup(`
-                <div style="text-align: center; font-size: 24px; margin-bottom: 8px;">
-                    ${selectedEmoji}
-                </div>
-                <div style="font-size: 12px;">
-                    Lat: ${e.latlng.lat.toFixed(6)}<br>
-                    Lng: ${e.latlng.lng.toFixed(6)}
-                </div>
-            `);
-        });
-       
-        // Initialize pin count
-        pinCountElement.textContent = pinCount;
-    </script>
+    <div id="map-container">
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    // Base correcta para archivos estáticos servidos por Flask
+    const STATIC_IMG = "{{ url_for('static', filename='img/') }}"; // termina con '/'
+
+    // Lista de íconos (asegúrate de que los archivos existan en static/img/)
+    const icons = [
+      { name: 'escuela',         src: STATIC_IMG + "Stickers entorno urbano-01.png" },
+      { name: 'parada-bus',      src: STATIC_IMG + "Stickers entorno urbano-02.png" },
+      { name: 'bicicleta',       src: STATIC_IMG + "Stickers entorno urbano-03.png" },
+      { name: 'comida',          src: STATIC_IMG + "Stickers entorno urbano-04.png" },
+      { name: 'baño',            src: STATIC_IMG + "Stickers entorno urbano-05.png" },
+      { name: 'reloj',           src: STATIC_IMG + "Stickers entorno urbano-06.png" },
+      { name: 'libro',           src: STATIC_IMG + "Stickers entorno urbano-07.png" },
+      { name: 'hospital',        src: STATIC_IMG + "Stickers entorno urbano-08.png" },
+      { name: 'estacionamiento', src: STATIC_IMG + "Stickers entorno urbano-09.png" }
+    ];
+
+    const UAM_AZCAPOTZALCO = [19.5083, -99.1856];
+
+    const map = L.map('map').setView(UAM_AZCAPOTZALCO, 16);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    // Ícono seleccionado por defecto
+    let selectedIconUrl = icons.length ? icons[0].src : null;
+
+    // Pre-carga opcional
+    icons.forEach(i => { const _im = new Image(); _im.src = i.src; });
+
+    // Construir selector
+    const iconSelector = document.getElementById('iconSelector');
+    const pinCountElement = document.getElementById('pinCount');
+    let pinCount = 0;
+
+    icons.forEach((icon, idx) => {
+      const btn = document.createElement('button');
+      btn.type = "button";
+      btn.className = 'icon-item';
+      btn.innerHTML = `<img class="icon-thumb" src="${icon.src}" alt="${icon.name}">`;
+      btn.title = icon.name;
+
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.icon-item').forEach(el => el.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedIconUrl = icon.src;
+      });
+
+      if (idx === 0) btn.classList.add('selected');
+      iconSelector.appendChild(btn);
+    });
+
+    // Marcador UAM con imagen local
+    const uamIcon = L.icon({
+      iconUrl: STATIC_IMG + "uam.png",
+      iconSize: [40, 40],
+      iconAnchor: [20, 40],
+      popupAnchor: [0, -36]
+    });
+    L.marker(UAM_AZCAPOTZALCO, { icon: uamIcon })
+      .addTo(map)
+      .bindPopup('<b>UAM Azcapotzalco</b><br>Universidad Autónoma Metropolitana');
+
+    // Colocar pines en clic
+    map.on('click', function(e) {
+      if (!selectedIconUrl) return;
+
+      const imgIcon = L.icon({
+        iconUrl: selectedIconUrl,
+        iconSize: [36, 36],
+        iconAnchor: [18, 36],
+        popupAnchor: [0, -32]
+      });
+
+      const marker = L.marker(e.latlng, { icon: imgIcon }).addTo(map);
+
+      pinCount++;
+      pinCountElement.textContent = pinCount;
+
+      marker.bindPopup(`
+        <div style="text-align:center; margin-bottom:6px;">
+          <img src="${selectedIconUrl}" alt="pin" style="width:28px; height:28px; object-fit:contain;">
+        </div>
+        <div style="font-size:12px;">
+          Lat: ${e.latlng.lat.toFixed(6)}<br>
+          Lng: ${e.latlng.lng.toFixed(6)}
+        </div>
+      `);
+    });
+  </script>
 </body>
 </html>
