@@ -214,7 +214,7 @@ def export_excel():
         except ValueError: return "date inválida (YYYY-MM-DD)", 400
         clauses.append("strftime('%Y-%m-%d', creado_en) = ?"); params.append(date_str)
 
-    if month:
+    if month: 
         try:
             y, m = month.split("-")
             datetime(int(y), int(m), 1)
