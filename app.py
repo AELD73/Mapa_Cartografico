@@ -173,7 +173,7 @@ def index():
     # Si no ha llenado formulario, mostrar login.html (encuesta)
     return render_template("login.html")
     """
-    return render_template("index_prueba.html")
+    return render_template("index.html")
     
 
 
