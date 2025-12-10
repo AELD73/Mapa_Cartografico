@@ -1,0 +1,201 @@
+section {
+    padding: 30px 5%;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+#carrusel {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    margin-top: 190px; 
+}
+
+.carrusel {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    box-sizing: border-box;
+    padding: 0; 
+}
+
+.carrusel-inner {
+    display: flex;
+    flex-wrap: nowrap; 
+    transition: transform 0.5s ease-in-out;
+}
+
+.carrusel-item {
+    min-width: 100%;
+    width: 100%;
+    flex-shrink: 0; 
+    height: 550px;
+}
+
+.carrusel-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: valor;  
+    display: block;
+}
+
+
+.carrusel-control {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 5;
+}
+
+.carrusel-control.prev {
+    left: 20px;
+}
+
+.carrusel-control.next {
+    right: 20px;
+}
+
+.carrusel-control:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+#texto-carrusel {
+    max-width: 90%;
+    margin: 0 auto;   
+    padding: 20px;
+}
+
+#texto-carrusel h2 {
+    font-family: "Arial", "Helvetica", sans-serif; 
+    font-size: 20px;        
+    font-weight: normal;    
+    line-height: 1.6;       
+    text-align: justify;    
+}
+
+/* Galería de imágenes */
+.gallery-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* Siempre 4 columnas */
+    gap: 20px;
+    width: 100%;
+    margin-top: 30px;
+    padding: 0px 5%;
+    border-radius: 10px;
+    box-sizing: border-box;
+}
+
+.gallery-item {
+    overflow: hidden;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    padding-bottom: 10px;
+    background-color: #f3e2da;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.gallery-item:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 190px;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.3s ease;
+}
+
+.gallery-item:hover img {
+    transform: scale(1.1);
+}
+
+/* Estilos para redes */
+#redes h2 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 50px;
+}
+
+.redes-imagenes {
+    display: flex;
+    justify-content: center;
+    gap: 60px;
+    flex-wrap: wrap;
+    margin-bottom: 70px;
+    padding: 0 5%;
+    box-sizing: border-box;
+}
+
+.redes-imagenes img {
+    width: 100px;
+    height: 100px;
+    transition: transform 0.3s ease;
+}
+
+.redes-imagenes img:hover {
+    transform: scale(1.5);
+}
+
+
+
+/* Ventana Celular */
+
+@media (max-width: 600px) {
+
+    .gallery-container {
+        width: 100%;
+        margin-top: 0px;
+        grid-template-columns: repeat(2, 1fr); 
+    }
+    .gallery-item {
+    overflow: hidden;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    padding-bottom: 15px;
+    background-color: #f3e2da;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    }
+
+    .gallery-item:hover {
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .gallery-item img {
+        width: 100%;
+        height: 140px;
+        object-fit: cover;
+        display: block;
+        transition: transform 0.3s ease;
+    }    
+}
+
+@media (max-width: 600px) {
+    #carrusel {
+        margin-top: 200px;
+    }
+
+    .carrusel-item img {
+        height: 250px; 
+    }
+}

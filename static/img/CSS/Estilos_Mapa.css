@@ -1,0 +1,192 @@
+/* ==== ZONA DEL MAPA, AISLADA DEL SITIO ==== */
+
+/* Fondo donde va el mapa */
+.map-wrapper {
+  background: #ff0000;
+  padding: 20px 20px 40px;
+}
+
+/* Grid: sidebar + mapa */
+.map-grid {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 20px;
+  min-height: calc(100vh - 220px);
+}
+
+/* Panel lateral */
+.map-sidebar {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Encabezado del panel del mapa */
+.map-panel-header {
+  text-align: center;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f0f0f0;
+}
+.map-panel-header h1 {
+  color: #1e40af;
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.map-panel-header p {
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+/* Grupos de iconos */
+.icon-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 10px 0;
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.icon-group {
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.icon-group-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-group-title .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #3b82f6;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.icon-item {
+  background: #fff;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  padding: 8px;
+  transition: 0.2s ease;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-item:hover {
+  transform: translateY(-2px);
+  border-color: #3b82f6;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.icon-item.selected {
+  background: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.icon-thumb {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Instrucciones y barra de estado */
+.instructions {
+  background: #eff6ff;
+  border-radius: 12px;
+  padding: 15px;
+  font-size: 0.9rem;
+  color: #1e3a8a;
+}
+
+.status-bar {
+  background: #ffffff;
+  padding: 10px 20px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+.pin-count {
+  background: #3b82f6;
+  color: #ffffff;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.9rem;
+}
+
+/* Contenedor del mapa */
+#map-container {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  background: #ffffff;
+}
+
+/* El mapa en sí */
+#map {
+  width: 100%;
+  min-height: 75vh;
+}
+
+/* Responsivo */
+@media (max-width: 1000px) {
+  .map-grid {
+    grid-template-columns: 1fr;
+  }
+  .map-wrapper {
+    padding: 10px;
+  }
+}
+
+/* ================================
+   AJUSTES SOLO PARA LA PÁGINA DEL MAPA
+   ================================ */
+
+/* En la página del mapa, el menú y la barra inferior
+   NO serán fijos ni se montan encima. */
+body.pagina-mapa .navbar,
+body.pagina-mapa .barra_inferior {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+}
+
+/* En la página del mapa, ocultamos la barra_inferior
+   para que no cruce horizontalmente el mapa */
+body.pagina-mapa .barra_inferior {
+  display: none !important;
+}
+
+/* El bloque del mapa empieza justo después del menú */
+body.pagina-mapa .map-wrapper {
+  margin-top: 0 !important;
+}

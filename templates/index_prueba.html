@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mapa UAM Azcapotzalco con Imágenes</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <style>
+    /* ================== CSS DE LA CABECERA (tal cual) ================== */
+    :root {
+        --reset-margin: 0;
+        --reset-padding: 0;
+        --box-sizing: border-box;
+        --text-decoration: none;
+        --list-style: none;
+    }
+
+    * {
+        margin: var(--reset-margin);
+        padding: var(--reset-padding);
+        box-sizing: var(--box-sizing);
+        text-decoration: var(--text-decoration);
+        list-style: var(--list-style);
+    }
+    ul.submenu {
+        display: none;
+    }
+
+    ul.submenu.show {
+        display: block;
+    }
+
+    body {
+        font-family: "Poly", serif !important;
+        background-color: #e6e6e6 !important;
+    }
+
+    a {
+        color: #ffffff !important;
+        text-decoration: none !important;
+    }
+
+    /* Barra superior fija */
+    .barra-superior {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 60px;
+        background-color: #ffffff;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        padding-left: 20px;
+    }
+
+    .barra-superior .logo-item {
+        display: flex;
+        gap: 40px; 
+    }
+
+    .barra-superior .logo-item img {
+        max-height: 25px;
+        width: auto;
+        transition: transform 0.3s ease;
+    }
+
+    .barra-superior .logo-item img:hover {
+        transform: scale(1.1);
+    }
+
+    /* Menú principal */
+    nav.navbar {
+        display: flex !important;
+        align-items: center !important;
+        position: fixed !important;
+        top: 60px !important;
+        width: 100% !important;
+        background-color: #002d3d !important;
+        height: 75px !important;
+        z-index: 99 !important;
+        padding: 0 20px !important;
+        flex-wrap: wrap !important;
+        justify-content: space-between;
+    }
+
+    nav.navbar .logo-item {
+        display: flex !important;
+        align-items: center !important;
+        gap: 30px !important;
+    }
+
+    nav.navbar .logo-item img {
+        max-height: 70px !important;
+        width: auto !important;
+        transition: transform 0.3s ease !important;
+    }
+
+    nav.navbar .logo-item img:hover {
+        transform: scale(1.1) !important;
+    }
+
+    /* Elementos del menú */
+    nav.navbar ul {
+        display: flex !important;
+        gap: 25px !important;
+        align-items: center !important;
+        margin-left: 0px !important;
+    }
+
+    nav.navbar ul li {
+        position: relative !important;
+    }
+
+    nav.navbar ul li a {
+        font-size: 18px !important;
+        padding: 12px 20px !important;
+        color: #ffffff !important;
+        font-weight: bold !important;
+        transition: background-color 0.3s ease, transform 0.3s ease !important;
+    }
+
+    nav.navbar > ul > li > a:hover {
+        background-color: #ff8110 !important;
+    }
+
+    .menu-toggle {
+        align-self: center;
+        display: none !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+        cursor: pointer !important;
+        position: absolute !important;
+        right: 25px !important;
+        top: center !important;
+        z-index: 101 !important;
+    }
+
+    .menu-toggle .bar {
+        width: 30px !important;
+        height: 4px !important;
+        background-color: #ffffff !important;
+        border-radius: 2px !important;
+    }
+
+    footer {
+        background-color: #013f55 !important;
+        color: white !important;
+        text-align: center !important;
+        padding: 100px !important;
+    }
+
+    /* Menú en celular */
+    @media (max-width: 1600px) {
+        .menu-toggle {
+            display: flex !important;
+        }
+
+        .barra-superior .logo-item {
+          display: flex;
+          gap: 20px; 
+        }
+
+        nav.navbar ul {
+            display: flex !important;
+            flex-direction: column !important;
+            position: absolute !important;
+            top: 150px !important;
+            left: 0 !important;
+            width: 100% !important;
+            background-color: #013f55 !important;
+            padding: 20px !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out !important;
+        }
+
+        nav.navbar ul.show {
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        nav.navbar ul li {
+            padding: 5px 0 !important;
+        }
+
+        nav.navbar ul li:hover ul.submenu {
+            display: none !important;
+        }
+
+        nav.navbar ul li ul.submenu {
+            display: none !important;
+        }
+
+        nav.navbar ul li ul.submenu.show {
+            display: flex !important;
+            background-color: #013f55 !important;
+        }
+
+        /* Barra superior fija */
+        .barra-superior {
+            position: fixed;
+            width: 100%;
+            top: 0;
+            left: 0;
+            height: 70px;
+            background-color: #ffffff;
+            display: flex;
+            align-items: center;
+        }
+
+        .barra-superior .logo-item img {
+            height: 30px !important;    
+            width: auto !important;
+            max-height: none !important; 
+            object-fit: contain !important;
+            position: relative;
+            z-index: 200;
+        }
+
+        nav.navbar {
+          display: flex !important;
+          align-items: center !important;
+          position: fixed !important;
+          top: 70px !important;
+          width: 100% !important;
+          background-color: #002d3d !important;
+          height: 70px !important;
+          z-index: 99 !important;
+          padding: 0 20px !important;
+          flex-wrap: wrap !important;
+          justify-content: space-between;
+        }
+
+        nav.navbar .logo-item img {
+          height: 60px !important;   
+          width: auto !important;
+          max-height: none !important; 
+          object-fit: contain !important;
+          position: relative;
+          z-index: 200;
+        }
+
+        nav.navbar .logo-item {
+            overflow: visible !important; 
+        }
+
+        .submenu {
+            display: none;
+            flex-direction: column;
+        }
+
+        /* Submenús visibles al activarse con JS */
+        .submenu.show {
+            display: flex;
+        }
+    }
+
+    /* Ventana Celular */
+    @media (max-width: 600px) {
+        .barra_inferior {
+            position: fixed;
+            bottom: 0;              
+            left: 0;
+            width: 100%;            
+            height: auto;           
+            max-height: 75px;      
+            display: flex;
+            flex-wrap: wrap;        
+            justify-content: center;
+            align-items: center;    
+            background-color: #ffffff !important;
+            z-index: 100;
+        }
+
+        .barra_inferior .submenu-contexto {
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .barra_inferior a {
+            margin: 0 5px;
+            white-space: nowrap;
+        }
+    }
+
+    .barra_inferior {
+        position: fixed;
+        top: 150px; 
+        left: 0; 
+        width: 100%; 
+        background-color: #002d3d !important;
+        padding: 10px 0; 
+        font-size: 15px;
+        font-weight: bold;
+        background-color: #ffffff;
+        z-index: 98;
+    }
+
+    .submenu-contexto {
+      display: none;
+      gap: 3rem;
+      padding: 10px;
+      margin: 0;
+    }
+
+    .submenu-contexto.active {
+      display: flex;
+    }
+
+    .relleno-blanco {
+        position: fixed;
+        top: 135px; 
+        left: 0;
+        width: 100%;
+        height: 15px; 
+        background-color: white;
+        z-index: 98; 
+    }
+
+    /* ================== CSS EXTRA SOLO PARA EL MAPA ================== */
+    /* Wrapper con fondo rojo para el mapa (no tocamos body) */
+    .map-wrapper {
+      background: #FF0000;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* Empujamos el grid por debajo de toda la cabecera fija (60 + 75 + 15 + barra_inferior) */
+    .map-wrapper .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+      margin-top: 200px;               /* <- ALTURA CABECERA */
+      height: calc(100vh - 200px);     /* <- RESTA CABECERA PARA QUE NO HAYA HUECO */
+    }
+
+    .sidebar {
+      background:white; border-radius:16px; padding:20px;
+      box-shadow:0 10px 30px rgba(0,0,0,.2);
+      display:flex; flex-direction:column; gap:20px; overflow:hidden;
+    }
+    .header { text-align:center; padding-bottom:15px; border-bottom:2px solid #f0f0f0; }
+    .header h1 { color:#1e40af; font-size:1.5rem; font-weight:700; margin-bottom:5px; }
+    .header p { color:#4b5563; font-size:.9rem; }
+
+    .icon-groups {
+      display:flex; flex-direction:column; gap:14px;
+      padding:10px 0; max-height:350px; overflow-y:auto;
+    }
+    .icon-group {
+      background:#f8fafc; border:2px solid #e2e8f0; border-radius:12px; padding:10px;
+    }
+    .icon-group-title {
+      font-size:.95rem; font-weight:700; color:#1e3a8a;
+      margin-bottom:8px; display:flex; align-items:center; gap:8px;
+    }
+    .icon-group-title .dot {
+      width:8px; height:8px; border-radius:9999px; background:#3b82f6;
+    }
+    .icon-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; }
+
+    .icon-item {
+      background:#fff; border:2px solid #e2e8f0; border-radius:12px;
+      cursor:pointer; padding:8px; transition:.2s ease; user-select:none;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .icon-item:hover { transform:translateY(-2px); border-color:#3b82f6; box-shadow:0 4px 12px rgba(59,130,246,.2); }
+    .icon-item.selected { background:#3b82f6; border-color:#3b82f6; }
+    .icon-thumb { width:34px; height:34px; object-fit:contain; display:block; filter: drop-shadow(0 1px 1px rgba(0,0,0,.15)); }
+
+    .instructions { background:#eff6ff; border-radius:12px; padding:15px; font-size:.9rem; color:#1e3a8a; }
+    .instructions h3 { margin-bottom:8px; color:#1e3a8a; }
+    .instructions ul { padding-left:20px; margin-top:8px; }
+    .instructions li { margin-bottom:5px; }
+
+    #map-container { border-radius:16px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.2); background:white; }
+    #map { height:100%; width:100%; }
+
+    .status-bar { background:white; padding:10px 20px; border-radius:12px;
+      display:flex; justify-content:space-between; align-items:center; margin-top:auto; }
+    .status-bar span { font-weight:600; color:#1e40af; }
+    .pin-count { background:#3b82f6; color:white; padding:4px 12px; border-radius:20px; font-size:.9rem; }
+
+    .icon-groups::-webkit-scrollbar { width:6px; }
+    .icon-groups::-webkit-scrollbar-track { background:#f1f1f1; border-radius:3px; }
+    .icon-groups::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
+    .icon-groups::-webkit-scrollbar-thumb:hover { background:#94a3b8; }
+  </style>
+</head>
+
+<body class="header">
+
+  <!-- ================= CABECERA COMPLETA (tal cual) ================= -->
+  <div class="barra-superior">
+    <div class="logo-item">
+        <a href="https://www.azc.uam.mx" target="_blank">
+            <img src="Imagenes/Logos/UAMAZ Negro.webp" alt="Logo UAM">
+        </a>
+        <a href="https://www.cyad.online/" target="_blank">
+            <img src="Imagenes/Logos/Logo_cyad.webp" alt="Logo CYAD">
+        </a>
+        <a href="https://evaluacion.azc.uam.mx/#Inicio" target="_blank">
+            <img src="Imagenes/Logos/Logo_evaluacion_negro.webp" alt="Logo Evaluación">
+        </a>
+        <a href="" target="_blank">
+            <img src="Imagenes/Logos/Logotipo LEU Negro.webp" alt="Logo Evaluación">
+        </a>
+    </div>
+  </div>
+
+  <nav class="navbar">
+    <div class="logo-item">
+        <a href="#" target="_blank">
+            <img src="Imagenes/Logos/Logotipo completo LEU Blanco.webp" alt="Logo LFU">
+        </a>
+    </div>
+
+    <div class="menu-toggle" id="menu-toggle">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+    </div>
+
+    <ul class="menu" id="menu">
+      <li><a href="Inicio.html">Inicio</a></li>
+      <li><a href="Investigacion.html">Investigación</a></li>
+      <li><a href="Formacion.html">Formación</a></li>
+      <li><a href="Vinculacion.html">Vinculación</a></li>
+      <li><a href="Divulgacion.html">Divulgación</a></li>
+      <li><a href="Servicios.html">Servicios</a></li>
+      <li><a href="Eventos_y_Noticias.html">Eventos y Noticias</a></li>
+      <li><a href="Transparencia.html">Transparencia</a></li>
+    </ul>
+  </nav>
+
+  <div class="relleno-blanco"></div>
+
+  <div class="barra_inferior">
+        <div class="submenu-contexto" id="submenu-inicio">
+            <a href="Que_hacemos.html">Nosotros</a>
+            <a href="Que_hacemos.html">Integrantes</a>
+            <a href="Que_hacemos.html">Uso de LFU</a>
+            <a href="Que_hacemos.html">Ubicación y Contacto</a>
+        </div>
+
+        <div class="submenu-contexto" id="submenu-investigacion" >
+            <a href="Investigacion.html">Líneas de investigación</a>
+            <a href="Investigacion.html">Investigaciones</a>
+        </div>
+        
+        <div class="submenu-contexto" id="submenu-formacion" >
+            <a href="Formacion.html">Cursos</a>
+            <a href="Formacion.html">Talleres</a>
+            <a href="Formacion.html">MOOC</a>
+            <a href="Formacion.html">Tutoriales</a>
+            <a href="Formacion.html">Servicio social</a>
+        </div>
+
+        <div class="submenu-contexto" id="submenu-vinculacion" >
+            <a href="Vinculacion.html">Laboratorios</a>
+            <a href="Vinculacion.html">Convenios</a>
+            <a href="Vinculacion.html">Sociedad</a>
+            <a href="Vinculacion.html">Anuario de Espacios Urbanos</a>
+        </div>
+        
+        <div class="submenu-contexto" id="submenu-divulgacion" >
+            <a href="Divulgacion.html">Publicaciones</a>
+            <a href="Divulgacion.html">Repositorio bibliográfica</a>
+            <a href="Divulgacion.html">Catálogo de mapas</a>
+            <a href="Divulgacion.html">IDE LFU</a>
+        </div>
+
+        <div class="submenu-contexto" id="submenu-servicios" >
+            <a href="Servicios.html">Asesorías</a>
+            <a href="Servicios.html">Consultoría</a>
+            <a href="Servicios.html">Capacitación</a>
+        </div>
+       <div class="submenu-contexto" id="submenu-eventos_y_noticias" >
+            <a href="Eventos_y_Noticias.html">Boletín - Actividades</a>
+            <a href="Eventos_y_Noticias.html">Eventos Próximos</a>
+        </div>
+
+        <div class="submenu-contexto" id="submenu-transparencia" >
+            <a href="Transparencia.html">Informes</a>
+            <a href="Transparencia.html">Ley de transparencia y datos personales</a>
+        </div>
+  </div>
+
+  <!-- ================= ZONA DEL MAPA ================= -->
+  <div class="map-wrapper">
+    <div class="container">
+      <div class="sidebar">
+        <div class="header">
+          <h1>UAM Azcapotzalco</h1>
+          <p>Selecciona un ícono y haz clic en el mapa</p>
+        </div>
+
+        <div id="iconGroups" class="icon-groups"></div>
+
+        <div class="instructions">
+          <h3>📋 Instrucciones</h3>
+          <ul>
+            <li>Selecciona un ícono de alguna sección</li>
+            <li>Haz clic en cualquier lugar del mapa</li>
+            <li>El ícono aparecerá como un pin</li>
+            <li>Puedes colocar múltiples pins</li>
+          </ul>
+        </div>
+
+        <div class="status-bar">
+          <span>Pins colocados:</span>
+          <span class="pin-count" id="pinCount">0</span>
+        </div>
+      </div>
+
+      <div id="map-container">
+        <div id="map"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    const STATIC_IMG = "{{ url_for('static', filename='img/') }}";
+
+    const ICONS_VIOLENCIA = [
+      { name: 'VIP', src: STATIC_IMG + 'Sticker Violencia - 01.png' },
+      { name: 'AEP', src: STATIC_IMG + 'Sticker Violencia - 02.png' },
+      { name: 'VIO', src: STATIC_IMG + 'Sticker Violencia - 03.png' },
+      { name: 'VFI', src: STATIC_IMG + 'Sticker Violencia - 04.png' },
+      { name: 'FEM', src: STATIC_IMG + 'Sticker Violencia - 05.png' },
+      { name: 'VIN', src: STATIC_IMG + 'Sticker Violencia - 06.png' },
+      { name: 'VPA', src: STATIC_IMG + 'Sticker Violencia - 07.png' },
+      { name: 'VCO', src: STATIC_IMG + 'Sticker Violencia - 08.png' },
+    ];
+    const ICONS_MEJORAMIENTO = [
+      { name: 'alumbrado', src: STATIC_IMG + 'Stickers entorno urbano-01.png' },
+      { name: 'bacheo',    src: STATIC_IMG + 'Stickers entorno urbano-02.png' },
+      { name: 'banqueta',  src: STATIC_IMG + 'Stickers entorno urbano-03.png' },
+      { name: 'arbolado',  src: STATIC_IMG + 'Stickers entorno urbano-04.png' },
+      { name: 'limpieza',  src: STATIC_IMG + 'Stickers entorno urbano-05.png' },
+      { name: 'limpieza',  src: STATIC_IMG + 'Stickers entorno urbano-06.png' },
+      { name: 'limpieza',  src: STATIC_IMG + 'Stickers entorno urbano-07.png' },
+      { name: 'limpieza',  src: STATIC_IMG + 'Stickers entorno urbano-08.png' },
+      { name: 'limpieza',  src: STATIC_IMG + 'Stickers entorno urbano-09.png' },
+    ];
+
+    [...ICONS_VIOLENCIA, ...ICONS_MEJORAMIENTO].forEach(i => { const _im = new Image(); _im.src = i.src; });
+
+    const groupsContainer = document.getElementById('iconGroups');
+    const pinCountElement = document.getElementById('pinCount');
+    let selectedIconUrl = null;
+    let selectedPinCode = null;
+    let pinCount = 0;
+
+    function renderGroup(title, colorDot, icons) {
+      const group = document.createElement('div');
+      group.className = 'icon-group';
+
+      const header = document.createElement('div');
+      header.className = 'icon-group-title';
+      header.innerHTML = `<span class="dot" style="background:${colorDot}"></span>${title}`;
+      group.appendChild(header);
+
+      const grid = document.createElement('div');
+      grid.className = 'icon-grid';
+
+      icons.forEach((icon, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'icon-item';
+        btn.innerHTML = `<img class="icon-thumb" src="${icon.src}" alt="${icon.name}">`;
+        btn.title = icon.name;
+
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.icon-item').forEach(el => el.classList.remove('selected'));
+          btn.classList.add('selected');
+          selectedIconUrl = icon.src;
+          selectedPinCode = icon.name;
+        });
+
+        if (!selectedIconUrl && idx === 0) {
+          btn.classList.add('selected');
+          selectedIconUrl = icon.src;
+          selectedPinCode = icon.name;
+        }
+
+        grid.appendChild(btn);
+      });
+
+      group.appendChild(grid);
+      groupsContainer.appendChild(group);
+    }
+
+    renderGroup('Violencia', '#ef4444', ICONS_VIOLENCIA);
+    renderGroup('Mejoramiento Urbano', '#10b981', ICONS_MEJORAMIENTO);
+
+    const UAM_AZCAPOTZALCO = [19.5083, -99.1856];
+    const map = L.map('map').setView(UAM_AZCAPOTZALCO, 16);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    const uamIcon = L.icon({
+      iconUrl: STATIC_IMG + "Uam_azc.webp",
+      iconSize: [40, 40],
+      iconAnchor: [20, 40],
+      popupAnchor: [0, -36]
+    });
+    L.marker(UAM_AZCAPOTZALCO, { icon: uamIcon })
+      .addTo(map)
+      .bindPopup('<b>UAM Azcapotzalco</b><br>Universidad Autónoma Metropolitana');
+
+    map.on('click', function(e) {
+      if (!selectedIconUrl) return;
+
+      const imgIcon = L.icon({
+        iconUrl: selectedIconUrl,
+        iconSize: [36, 36],
+        iconAnchor: [18, 36],
+        popupAnchor: [0, -32]
+      });
+
+      const marker = L.marker(e.latlng, { icon: imgIcon }).addTo(map);
+      pinCount++;
+      pinCountElement.textContent = pinCount;
+
+      marker.bindPopup(`
+        <div style="text-align:center; margin-bottom:6px;">
+          <img src="${selectedIconUrl}" alt="pin" style="width:28px; height:28px; object-fit:contain;">
+        </div>
+        <div style="font-size:12px;">
+          Lat: ${e.latlng.lat.toFixed(6)}<br>
+          Lng: ${e.latlng.lng.toFixed(6)}<br>
+          Código: ${selectedPinCode || 'N/A'}
+        </div>
+      `);
+
+      fetch("/api/pins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat: e.latlng.lat,
+          lon: e.latlng.lng,
+          codigo_pin: selectedPinCode,
+          nom: selectedIconUrl
+        })
+      }).catch(err => console.error("Error llamando /api/pins:", err));
+    });
+  </script>
+
+  <!-- JS del menú (sin cambios) -->
+  <script src="js/menu.js"></script>
+</body>
+</html>

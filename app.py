@@ -161,6 +161,7 @@ def admin_required(f):
 # -----------------------
 @app.route("/")
 def index():
+    """
     # Si hay admin logueado
     if "user_id" in session:
         return render_template("index.html", user=session.get("username"), role=session.get("role"))
@@ -171,6 +172,9 @@ def index():
 
     # Si no ha llenado formulario, mostrar login.html (encuesta)
     return render_template("login.html")
+    """
+    return render_template("index_prueba.html")
+    
 
 
 # -----------------------
