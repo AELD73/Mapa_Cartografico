@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from io import BytesIO
 import json
@@ -601,7 +601,7 @@ def login():
 def logout():
     session.clear()
     flash("Sesión cerrada.", "ok")
-    return redirect(url_for("index"))
+    return redirect(url_for("https://desarrollophp2.azc.uam.mx/labestudiosurbanos/index.html"))
 
 
 # -----------------------
