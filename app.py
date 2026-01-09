@@ -17,6 +17,8 @@ DB_PATH = os.path.join(BASE_DIR, "pines.db")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "cambia_esta_llave_supersecreta")
+app.permanent_session_lifetime = timedelta(minutes=3)
+
 
 # -----------------------
 # DB helpers
@@ -155,13 +157,48 @@ def admin_required(f):
         return f(*args, **kwargs)
     return wrapper
 
+EXPIRE_REDIRECT_URL = "https://tu-dominio.com/gracias"  # <- externa (opcional)
+# Si prefieres interna, usa: EXPIRE_REDIRECT_ENDPOINT = "login"
+
+EXPIRE_REDIRECT_ENDPOINT = "login"  # <- interna (recomendada)
+# Puedes dejar solo uno: endpoint o URL externa.
+
+@app.before_request
+def enforce_idle_timeout():
+    # Solo aplica si hay sesión de admin o de visita
+    if "user_id" not in session and "visita_id" not in session:
+        return
+
+    now = datetime.utcnow()
+
+    last = session.get("last_activity")
+    if last:
+        try:
+            last_dt = datetime.fromisoformat(last)
+            if now - last_dt > app.permanent_session_lifetime:
+                session.clear()
+                flash("Sesión finalizada por inactividad.", "warn")
+
+                # ✅ Redirección interna
+                if EXPIRE_REDIRECT_ENDPOINT:
+                    return redirect(url_for(EXPIRE_REDIRECT_ENDPOINT))
+
+                # ✅ Redirección externa
+                return redirect(EXPIRE_REDIRECT_URL)
+        except Exception:
+            # si last_activity está corrupto, lo limpiamos
+            session.pop("last_activity", None)
+
+    # Actualiza actividad
+    session["last_activity"] = now.isoformat()
+    session.permanent = True
 
 # -----------------------
 # Rutas principales
 # -----------------------
 @app.route("/")
 def index():
-    """
+    
     # Si hay admin logueado
     if "user_id" in session:
         return render_template("index.html", user=session.get("username"), role=session.get("role"))
@@ -172,8 +209,8 @@ def index():
 
     # Si no ha llenado formulario, mostrar login.html (encuesta)
     return render_template("login.html")
-    """
-    return render_template("index.html")
+    
+    #return render_template("index.html")
     
 
 
@@ -592,6 +629,9 @@ def login():
 
     visita_id = cursor.lastrowid
     session["visita_id"] = visita_id
+    session.permanent = True
+    session["last_activity"] = datetime.utcnow().isoformat()
+
 
     flash(f"Gracias por tu participación. Tu folio es: {visita_id}", "success")
     return redirect(url_for("index"))

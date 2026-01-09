@@ -683,6 +683,69 @@ nav.navbar ul {
   <script>
   document.addEventListener('DOMContentLoaded', setupMenu);
 </script>
+<script>
+(function () {
+  // Si es navegación interna, ponemos esta bandera en true
+  let isInternalNavigation = false;
+
+  function isSameOrigin(href) {
+    try {
+      const url = new URL(href, window.location.href);
+      return url.origin === window.location.origin;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Interceptar clicks en enlaces
+  document.addEventListener('click', function (e) {
+    const a = e.target.closest('a[href]');
+    if (!a) return;
+
+    const href = a.getAttribute('href');
+    if (!href) return;
+
+    // Enlaces solo con # (anclas internas)
+    if (href.startsWith('#')) {
+      isInternalNavigation = true; // no cerrar sesión
+      return;
+    }
+
+    if (isSameOrigin(href)) {
+      // Navegación dentro del MISMO dominio → no cerramos sesión
+      isInternalNavigation = true;
+    } else {
+      // Navegación a OTRO dominio → cerramos sesión ya
+      isInternalNavigation = false;
+      navigator.sendBeacon('/logout');
+    }
+  }, true);
+
+  // Interceptar formularios (por si mandan a otro dominio)
+  document.addEventListener('submit', function (e) {
+    const form = e.target;
+    const action = form.getAttribute('action') || window.location.href;
+
+    if (isSameOrigin(action)) {
+      isInternalNavigation = true; // formulario dentro del mismo dominio
+    } else {
+      isInternalNavigation = false;
+      navigator.sendBeacon('/logout');
+    }
+  }, true);
+
+  // Cuando la página se va a descargar (cerrar pestaña, recargar, irse a otro sitio)
+  window.addEventListener('beforeunload', function () {
+    // Si NO es navegación interna dentro del mismo dominio → cerrar sesión
+    if (!isInternalNavigation) {
+      navigator.sendBeacon('/logout');
+    }
+    // Para la próxima carga, que vuelva a iniciar en false
+    isInternalNavigation = false;
+  });
+})();
+</script>
+
 
 </body>
 </html>
