@@ -54,19 +54,18 @@ def init_db():
 
     # Pins colocados en el mapa, ligados a una visita
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS pines (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        visita_id INTEGER NOT NULL,
-        codigo_pin TEXT NOT NULL,
-        lat REAL NOT NULL,
-        lon REAL NOT NULL,
-        nom TEXT,
-        idu TEXT,
-        creado_en TEXT NOT NULL,
-        FOREIGN KEY(visita_id) REFERENCES visitas(id)
+        CREATE TABLE IF NOT EXISTS pines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            visita_id INTEGER NOT NULL,
+            codigo_pin TEXT NOT NULL,
+            lat REAL NOT NULL,
+            lon REAL NOT NULL,
+            nom TEXT,
+            idu TEXT,
+            creado_en TEXT NOT NULL,
+            FOREIGN KEY(visita_id) REFERENCES visitas(id)
         )
     """)
-
 
     # Catálogo de tipos de pines (movilidad / violencia)
     cursor.execute("""
@@ -281,107 +280,44 @@ def get_pins():
 
 @app.route("/api/pins", methods=["POST"])
 def add_pin():
-    # Intentamos leer JSON primero
-    payload = request.get_json(silent=True)
-    if payload is None:
-        # Si no viene JSON, intentamos con form data
-        if request.form:
-            payload = request.form.to_dict()
-        else:
-            payload = request.values.to_dict()
+    payload = request.get_json(force=True)
 
-    print("DEBUG /api/pins payload:", payload)
-
-    if not payload:
-        print("DEBUG /api/pins: payload vacío")
-        return jsonify({"ok": False, "error": "Payload vacío"}), 400
-
-    # Aceptamos lon o lng (muchos mapas usan lng)
     lon = payload.get("lon")
-    if lon is None:
-        lon = payload.get("lng")
-
     lat = payload.get("lat")
-
-    # Soportamos tanto formato nuevo (codigo_pin, nom, idu)
-    # como el viejo (titulo, descripcion)
-    codigo_pin = (payload.get("codigo_pin")
-                  or payload.get("titulo")
-                  or "").strip()
-    nom = (payload.get("nom")
-           or payload.get("descripcion")
-           or "").strip()
+    codigo_pin = (payload.get("codigo_pin") or "").strip()
+    nom = (payload.get("nom") or "").strip()
     idu = (payload.get("idu") or "").strip()
 
     if lon is None or lat is None:
-        print("DEBUG /api/pins: faltan coordenadas", lon, lat)
-        return jsonify({
-            "ok": False,
-            "error": "Faltan coordenadas lon/lat o lng/lat",
-            "payload": payload
-        }), 400
-
-    # Si no llega ningún código/título, le ponemos uno genérico
+        return jsonify({"error": "Faltan coordenadas lon/lat"}), 400
     if not codigo_pin:
-        print("DEBUG /api/pins: no vino codigo_pin/titulo, usando 'SIN_CODIGO'")
-        codigo_pin = "SIN_CODIGO"
+        return jsonify({"error": "Falta código del pin (codigo_pin)"}), 400
 
-    try:
-        lon_f = float(lon)
-        lat_f = float(lat)
-    except (TypeError, ValueError) as e:
-        print("DEBUG /api/pins: error convirtiendo lon/lat a float:", e)
-        return jsonify({"ok": False, "error": "Coordenadas inválidas", "payload": payload}), 400
+    # Ligamos el pin a la visita almacenada en sesión
+    visita_id = session.get("visita_id")
+    if not visita_id:
+        return jsonify({"error": "No hay visita activa en la sesión."}), 400
 
     db = get_db()
-    cursor = db.cursor()
+    db.execute(
+        """
+        INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, creado_en)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(visita_id),
+            codigo_pin,
+            float(lat),
+            float(lon),
+            nom or None,
+            idu or None,
+            datetime.now().isoformat(timespec="seconds"),
+        ),
+    )
+    db.commit()
+    new_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+    return jsonify({"ok": True, "id": new_id}), 201
 
-    # Intentamos recuperar visita_id desde la sesión
-    visita_id = session.get("visita_id")
-
-    # Si no hay visita_id, creamos una visita genérica para no perder el pin
-    if not visita_id:
-        print("DEBUG /api/pins: no hay visita_id en sesión, creando visita genérica")
-        cursor.execute(
-            """
-            INSERT INTO visitas (edad, origen, destino, creado_en)
-            VALUES (?, ?, ?, ?)
-            """,
-            (None, "Desconocido", "Desconocido",
-             datetime.now().isoformat(timespec="seconds"))
-        )
-        db.commit()
-        visita_id = cursor.lastrowid
-        session["visita_id"] = visita_id
-
-    # Insertamos el pin ligado a la visita
-    try:
-        cursor.execute(
-            """
-            INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, creado_en)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                int(visita_id),
-                codigo_pin,
-                lat_f,
-                lon_f,
-                nom or None,
-                idu or None,
-                datetime.now().isoformat(timespec="seconds"),
-            ),
-        )
-        db.commit()
-    except Exception as e:
-        import traceback
-        print("DEBUG /api/pins: EXCEPCIÓN al insertar pin")
-        traceback.print_exc()
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-    new_id = cursor.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
-    print("DEBUG /api/pins: insertado pin_id =", new_id, "para visita_id =", visita_id)
-
-    return jsonify({"ok": True, "id": new_id, "visita_id": visita_id}), 201
 
 # -----------------------
 # API Settings
@@ -644,9 +580,6 @@ def logout():
     return redirect(url_for("https://desarrollophp2.azc.uam.mx/labestudiosurbanos/index.html"))
 
 
-# -----------------------
-# Main
-# -----------------------
 # -----------------------
 # Main
 # -----------------------
