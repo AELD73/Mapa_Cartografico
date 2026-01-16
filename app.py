@@ -577,8 +577,60 @@ def login():
 def logout():
     session.clear()
     flash("Sesión cerrada.", "ok")
-    return redirect(url_for("https://desarrollophp2.azc.uam.mx/labestudiosurbanos/index.html"))
+    return redirect("https://desarrollophp2.azc.uam.mx/labestudiosurbanos/index.html")
 
+
+
+@app.route("/api/pins/bulk", methods=["POST"])
+def add_pins_bulk():
+    payload = request.get_json(force=True) or {}
+    pins = payload.get("pins")
+
+    if not isinstance(pins, list) or len(pins) == 0:
+        return jsonify({"error": "No se recibieron pines (pins[])."}), 400
+
+    # Ligamos el guardado a la visita en sesión
+    visita_id = session.get("visita_id")
+    if not visita_id:
+        return jsonify({"error": "No hay visita activa en la sesión."}), 400
+
+    rows_to_insert = []
+    for i, p in enumerate(pins):
+        try:
+            lon = p.get("lon")
+            lat = p.get("lat")
+            codigo_pin = (p.get("codigo_pin") or "").strip()
+            nom = (p.get("nom") or "").strip()
+            idu = (p.get("idu") or "").strip()
+
+            if lon is None or lat is None:
+                return jsonify({"error": f"Pin #{i}: faltan coordenadas lon/lat"}), 400
+            if not codigo_pin:
+                return jsonify({"error": f"Pin #{i}: falta codigo_pin"}), 400
+
+            rows_to_insert.append((
+                int(visita_id),
+                codigo_pin,
+                float(lat),
+                float(lon),
+                nom or None,
+                idu or None,
+                datetime.now().isoformat(timespec="seconds"),
+            ))
+        except Exception:
+            return jsonify({"error": f"Pin #{i}: datos inválidos"}), 400
+
+    db = get_db()
+    db.executemany(
+        """
+        INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, creado_en)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        rows_to_insert
+    )
+    db.commit()
+
+    return jsonify({"ok": True, "saved": len(rows_to_insert)}), 201
 
 # -----------------------
 # Main
