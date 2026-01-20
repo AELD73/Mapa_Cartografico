@@ -11,12 +11,22 @@ from flask import (
     redirect, url_for, session, flash
 )
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+import zipfile
+import shapefile
+import shutil
+import pyproj
 
 BASE_DIR = os.path.dirname(__file__)
 DB_PATH = os.path.join(BASE_DIR, "pines.db")
+LAYERS_DIR = os.path.join(BASE_DIR, "static", "layers")
+os.makedirs(LAYERS_DIR, exist_ok=True)
 
 app = Flask(__name__)
+# Llave secreta para manejo de sesiones (cookies)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "cambia_esta_llave_supersecreta")
+# Tiempo de vida de la sesión (3 minutos de inactividad)
 app.permanent_session_lifetime = timedelta(minutes=3)
 
 
@@ -119,6 +129,19 @@ def init_db():
         )
     """)
     cursor.execute("INSERT OR IGNORE INTO settings (id) VALUES (1)")
+
+    # Tabla para capas (shapefiles convertidos a GeoJSON)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS layers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            filename TEXT NOT NULL UNIQUE,
+            filename TEXT NOT NULL UNIQUE,
+            color TEXT DEFAULT '#3388ff',
+            icon TEXT,
+            created_at TEXT NOT NULL
+        )
+    """)
 
     # Índices para acelerar consultas
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_pines_visita ON pines(visita_id)")
@@ -320,7 +343,7 @@ def add_pin():
 
 
 # -----------------------
-# API Settings
+# API de Configuración
 # -----------------------
 @app.route("/api/settings", methods=["GET"])
 def get_settings():
@@ -453,7 +476,8 @@ def admin_panel():
     s = db.execute(
         "SELECT center_lon, center_lat, zoom FROM settings WHERE id=1"
     ).fetchone()
-    return render_template("admin_panel.html", admins=admins, settings=s)
+    layers = db.execute("SELECT * FROM layers ORDER BY created_at DESC").fetchall()
+    return render_template("panel_administracion.html", admins=admins, settings=s, layers=layers)
 
 
 @app.route("/admin/create", methods=["POST"])
@@ -490,6 +514,27 @@ def main_admin():
     )
 
 
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        
+        db = get_db()
+        user = db.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        
+        if user and check_password_hash(user["password_hash"], password):
+            session["user_id"] = user["id"]
+            session["username"] = user["username"]
+            session["role"] = user["role"]
+            flash(f"Bienvenido, {user['username']}", "ok")
+            return redirect(url_for("admin_panel"))
+        else:
+            flash("Usuario o contraseña incorrectos", "error")
+            
+    return render_template("inicio_sesion_admin.html")
+
+
 # -----------------------
 # Registro/Login de administrador
 # -----------------------
@@ -510,7 +555,7 @@ def admin_register():
         password = request.form.get("password") or ""
         if not username or not password:
             flash("Usuario y contraseña son obligatorios.", "error")
-            return render_template("admin_register.html")
+            return render_template("registro_admin.html")
 
         pw_hash = generate_password_hash(password)
         try:
@@ -524,7 +569,7 @@ def admin_register():
         except sqlite3.IntegrityError:
             flash("Ese usuario ya existe.", "error")
 
-    return render_template("admin_register.html")
+    return render_template("registro_admin.html")
 
 
 # -----------------------
@@ -633,6 +678,197 @@ def add_pins_bulk():
     return jsonify({"ok": True, "saved": len(rows_to_insert)}), 201
 
 # -----------------------
+# Gestión de capas (Archivos Shapefile)
+# -----------------------
+# Ruta para subir un archivo ZIP con capas y procesarlo a GeoJSON
+@app.route("/admin/upload_layer", methods=["POST"])
+@admin_required
+def upload_layer():
+    if "layer_file" not in request.files:
+        flash("No se seleccionó archivo", "error")
+        return redirect(url_for("admin_panel"))
+
+    file = request.files["layer_file"]
+    if file.filename == "":
+        flash("Nombre de archivo vacío", "error")
+        return redirect(url_for("admin_panel"))
+
+    name = request.form.get("layer_name") or os.path.splitext(file.filename)[0]
+    color = request.form.get("layer_color") or "#3388ff"
+    overwrite = request.form.get("overwrite") == "on"
+    
+    icon_file = request.files.get("layer_icon")
+    icon_filename = None
+
+    if icon_file and icon_file.filename != "":
+        if not icon_file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.svg', '.webp')):
+             flash("Icono inválido. Usa PNG, JPG o SVG.", "error")
+             return redirect(url_for("admin_panel"))
+        
+        # Guardar icono
+        ext = os.path.splitext(icon_file.filename)[1].lower()
+        icon_name = f"{secure_filename(name)}_icon{ext}"
+        icon_path = os.path.join(LAYERS_DIR, icon_name)
+        icon_file.save(icon_path)
+        icon_filename = icon_name
+
+    if not file.filename.lower().endswith(".zip"):
+        flash("Solo se permiten archivos .zip", "error")
+        return redirect(url_for("admin_panel"))
+
+    clean_name = secure_filename(name)
+    json_filename = f"{clean_name}.json"
+    json_path = os.path.join(LAYERS_DIR, json_filename)
+
+    db = get_db()
+    existing = db.execute("SELECT id FROM layers WHERE filename=?", (json_filename,)).fetchone()
+
+    if existing and not overwrite:
+        flash("Ya existe una capa con ese nombre. Cambia el nombre o marca sobrescribir.", "error")
+        return redirect(url_for("admin_panel"))
+
+    # Procesamiento del archivo
+    try:
+        # Guardar ZIP temporalmente
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            zip_path = os.path.join(tmpdirname, "upload.zip")
+            file.save(zip_path)
+
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(tmpdirname)
+
+            # Buscar .shp
+            shp_file = None
+            for root, dirs, files in os.walk(tmpdirname):
+                for f in files:
+                    if f.lower().endswith(".shp"):
+                        shp_file = os.path.join(root, f)
+                        break
+                if shp_file: break
+
+            if not shp_file:
+                flash("El ZIP no contiene ningún archivo .shp", "error")
+                return redirect(url_for("admin_panel"))
+
+            # Leer con pyshp
+            sf = shapefile.Reader(shp_file)
+            fields = [x[0] for x in sf.fields][1:]
+            records = sf.records()
+            shapes = sf.shapes()
+
+            # Preparar reproyección de UTM zona 14N a WGS84
+            # (Asumiendo datos de CDMX que usualmente son UTM 14N, EPSG:32614)
+            # Para mayor robustez idealmente se leería el archivo .prj, pero requiere GDAL
+            transformer = pyproj.Transformer.from_crs("epsg:32614", "epsg:4326", always_xy=True)
+
+            features = []
+            for i, shp in enumerate(shapes):
+                # pyshp 2.x+ tiene __geo_interface__
+                
+                # Manejo de records
+                rec = records[i]
+                
+                # Transformar geometría si parece proyectada (valores grandes)
+                # Simple check: si x > 180, asumimos proyectada
+                geo = shp.__geo_interface__
+                
+                def reproject_coords(coords):
+                    if isinstance(coords[0], (list, tuple)):
+                        return [reproject_coords(c) for c in coords]
+                    else:
+                        # Si es coordenada simple (x, y)
+                        x, y = coords[0], coords[1]
+                        if x > 180 or x < -180:
+                            lon, lat = transformer.transform(x, y)
+                            return [lon, lat]
+                        return [x, y]
+
+                if geo['type'] == 'Point':
+                    geo['coordinates'] = reproject_coords(geo['coordinates'])
+                elif geo['type'] in ['Polygon', 'LineString', 'MultiPolygon', 'MultiLineString']:
+                    geo['coordinates'] = reproject_coords(geo['coordinates'])
+                
+                # Convertir a dict
+                props = {}
+                for j, field_name in enumerate(fields):
+                    val = rec[j]
+                    # Fix bytes to str if needed
+                    if isinstance(val, bytes):
+                        val = val.decode('utf-8', errors='replace')
+                    props[field_name] = val
+
+                feature = {
+                    "type": "Feature",
+                    "properties": props,
+                    "geometry": geo
+                }
+                features.append(feature)
+
+            geojson = {
+                "type": "FeatureCollection",
+                "features": features
+            }
+
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump(geojson, f)
+
+        if existing:
+            # Si sube nuevo icono, actualizamos. Si no, mantenemos el anterior (o null si quiere borrar? por ahora simple)
+            update_sql = "UPDATE layers SET created_at=?, color=?"
+            params = [datetime.now().isoformat(), color]
+            
+            if icon_filename:
+                update_sql += ", icon=?"
+                params.append(icon_filename)
+            
+            update_sql += " WHERE id=?"
+            params.append(existing["id"])
+            
+            db.execute(update_sql, params)
+            flash("Capa actualizada correctamente.", "ok")
+        else:
+            db.execute("INSERT INTO layers (name, filename, color, icon, created_at) VALUES (?, ?, ?, ?, ?)",
+                      (name, json_filename, color, icon_filename, datetime.now().isoformat()))
+            flash("Capa subida y procesada correctamente.", "ok")
+        
+        db.commit()
+
+    except Exception as e:
+        flash(f"Error procesando shapefile: {str(e)}", "error")
+
+    return redirect(url_for("admin_panel"))
+
+@app.route("/admin/delete_layer/<filename>", methods=["POST"])
+@admin_required
+def delete_layer(filename):
+    db = get_db()
+    db.execute("DELETE FROM layers WHERE filename=?", (filename,))
+    db.commit()
+
+    path = os.path.join(LAYERS_DIR, secure_filename(filename))
+    if os.path.exists(path):
+        os.remove(path)
+    
+    flash("Capa eliminada.", "ok")
+    return redirect(url_for("admin_panel"))
+
+@app.route("/api/layers")
+def get_layers_api():
+    db = get_db()
+    layers = db.execute("SELECT name, filename, color, icon FROM layers").fetchall()
+    data = []
+    for l in layers:
+        icon_url = url_for('static', filename=f'layers/{l["icon"]}') if l["icon"] else None
+        data.append({
+            "name": l["name"],
+            "color": l["color"] or "#3388ff",
+            "icon": icon_url,
+            "url": url_for('static', filename=f'layers/{l["filename"]}')
+        })
+    return jsonify(data)
+
+# -----------------------
 # Main
 # -----------------------
 if __name__ == "__main__":
@@ -640,5 +876,5 @@ if __name__ == "__main__":
     with app.app_context():
         init_db()
 
-    app.run(host="0.0.0.0", port=3000, debug=True)
+    app.run(host="0.0.0.0", port=8080, debug=True)
 

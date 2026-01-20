@@ -1,890 +1,991 @@
 <!DOCTYPE html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mapa UAM Azcapotzalco con Imágenes</title>
 
-    <!-- Leaflet CSS -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapa UAM Azcapotzalco con Imágenes</title>
 
-    <style>
-      /* ==========================
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    /* ==========================
    RESET / BASE
    ========================== */
-      * {
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-        padding: 0;
-      }
-      body {
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial,
-          sans-serif;
-        background: #ff0000; /* si quieres el fondo rojo global */
-      }
+    * {
+      box-sizing: border-box;
+    }
 
-      /* ==========================
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial,
+        sans-serif;
+      background: #f3e2da;
+      /* color de fondo solicitado */
+    }
+
+    /* ==========================
    VARIABLES (AJUSTE FINO)
    ========================== */
-      :root {
-        --gap: clamp(10px, 1.2vw, 18px);
-        --pad: clamp(10px, 1.4vw, 18px);
-        --radius: clamp(12px, 1.2vw, 18px);
+    :root {
+      --gap: clamp(10px, 1.2vw, 18px);
+      --pad: clamp(10px, 1.4vw, 18px);
+      --radius: clamp(12px, 1.2vw, 18px);
 
-        /* Sidebar controlado para que NO se vea enorme en monitores grandes */
-        --sidebar-min: 260px;
-        --sidebar-ideal: 320px;
-        --sidebar-max: 380px;
+      /* Sidebar controlado para que NO se vea enorme en monitores grandes */
+      --sidebar-min: 260px;
+      --sidebar-ideal: 320px;
+      --sidebar-max: 380px;
 
-        /* Altura mínima y preferida del mapa */
-        --map-min-h: 520px;
-      }
+      /* Altura mínima y preferida del mapa */
+      --map-min-h: 520px;
+    }
 
-      /* ==========================
+    /* ==========================
    WRAPPER FULLSCREEN
    ========================== */
-      .map-wrapper {
-        height: 100dvh; /* mejor que 100vh en móviles (barra navegador) */
-        padding: var(--pad);
-      }
+    .map-wrapper {
+      height: 100dvh;
+      /* mejor que 100vh en móviles (barra navegador) */
+      padding: var(--pad);
+    }
 
-      /* ==========================
+    /* ==========================
    CONTENEDOR PRINCIPAL
    - max-width se adapta a pantallas grandes
    ========================== */
-      .container {
-        height: 100%;
-        margin: 0 auto;
+    .container {
+      height: 100%;
+      margin: 0 auto;
 
-        /* Esto hace que en pantallas grandes el layout NO se vea “chiquito” */
-        max-width: min(1800px, calc(100vw - (var(--pad) * 2)));
+      /* Esto hace que en pantallas grandes el layout NO se vea “chiquito” */
+      max-width: min(1800px, calc(100vw - (var(--pad) * 2)));
 
-        display: grid;
-        gap: var(--gap);
+      display: grid;
+      gap: var(--gap);
 
-        /* Sidebar "controlado" + mapa */
-        grid-template-columns:
-          clamp(var(--sidebar-min), 22vw, var(--sidebar-max))
-          minmax(0, 1fr);
+      /* Sidebar "controlado" + mapa */
+      grid-template-columns:
+        clamp(var(--sidebar-min), 22vw, var(--sidebar-max)) minmax(0, 1fr);
 
-        align-items: stretch;
-      }
+      align-items: stretch;
+    }
 
-      /* ==========================
+    /* ==========================
    SIDEBAR
    ========================== */
-      .sidebar {
-        background: #fff;
-        border-radius: var(--radius);
-        padding: var(--pad);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    .sidebar {
+      background: #fff;
+      border-radius: var(--radius);
+      padding: var(--pad);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
 
-        display: flex;
-        flex-direction: column;
-        gap: var(--gap);
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap);
 
-        height: 100%;
-        min-width: 0;
-        overflow: hidden;
+      height: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .sidebar .header {
+      text-align: center;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    .sidebar .header h1 {
+      color: #1e40af;
+      font-size: clamp(1.05rem, 0.9rem + 0.6vw, 1.5rem);
+      font-weight: 900;
+      margin: 0 0 6px 0;
+    }
+
+    .sidebar .header p {
+      color: #4b5563;
+      font-size: clamp(0.85rem, 0.78rem + 0.25vw, 1rem);
+      margin: 0;
+    }
+
+    /* Scroll contenido sidebar (iconos) */
+    .icon-groups {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: auto;
+
+      /* Muy importante: evita que el sidebar estire el layout */
+      min-height: 0;
+      padding-right: 2px;
+    }
+
+    .icon-group {
+      background: #f8fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .icon-group-title {
+      font-size: clamp(0.9rem, 0.82rem + 0.2vw, 1rem);
+      font-weight: 900;
+      color: #1e3a8a;
+      margin: 0 0 10px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-group-title .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
+      background: #3b82f6;
+    }
+
+    /* Grid de iconos: se adapta automáticamente */
+    .icon-grid {
+      display: grid;
+      gap: clamp(8px, 0.9vw, 12px);
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .icon-item {
+      background: #fff;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      cursor: pointer;
+      padding: clamp(6px, 0.8vw, 10px);
+      transition: 0.2s ease;
+      user-select: none;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+    }
+
+    .icon-item:hover {
+      transform: translateY(-2px);
+      border-color: #3b82f6;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.18);
+    }
+
+    .icon-item.selected {
+      background: #3b82f6;
+      border-color: #3b82f6;
+    }
+
+    .icon-thumb {
+      width: clamp(28px, 2.2vw, 36px);
+      height: clamp(28px, 2.2vw, 36px);
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15));
+    }
+
+    .instructions {
+      background: #eff6ff;
+      border-radius: 12px;
+      padding: clamp(10px, 1.1vw, 14px);
+      font-size: clamp(0.85rem, 0.8rem + 0.25vw, 0.98rem);
+      color: #1e3a8a;
+    }
+
+    .instructions h3 {
+      margin: 0 0 8px 0;
+      color: #1e3a8a;
+      font-weight: 900;
+    }
+
+    .instructions ul {
+      padding-left: 18px;
+      margin: 8px 0 0 0;
+    }
+
+    .instructions li {
+      margin-bottom: 6px;
+    }
+
+    /* Botones (Guardar / Regresar) */
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+      flex: 1;
+      border: none;
+      border-radius: 12px;
+      padding: clamp(10px, 1.2vw, 12px);
+      font-weight: 900;
+      cursor: pointer;
+      transition: 0.2s ease;
+      font-size: clamp(0.9rem, 0.85rem + 0.25vw, 1rem);
+    }
+
+    .btn-primary {
+      background: #1d4ed8;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .btn-secondary:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.03);
+    }
+
+    .save-status {
+      background: #f1f5f9;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 0.92rem;
+      color: #0f172a;
+    }
+
+    /* Barra de estado */
+    .status-bar {
+      background: #fff;
+      padding: 10px 14px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      border: 2px solid #f1f5f9;
+    }
+
+    .status-bar span {
+      font-weight: 800;
+      color: #1e40af;
+    }
+
+    .pin-count {
+      background: #3b82f6;
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.9rem;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    /* Scrollbar suave */
+    .icon-groups::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .icon-groups::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
+    }
+
+    .icon-groups::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+
+    .icon-groups::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* ==========================
+   MAPA (LA CLAVE DEL “NO SE VE DESPROPORCIONADO”)
+   ========================== */
+    #map-container {
+      height: 100%;
+      min-height: var(--map-min-h);
+
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+      background: #fff;
+
+      min-width: 0;
+    }
+
+    /* Mantén Leaflet al 100% del contenedor */
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Evitar overlays detrás */
+    .leaflet-container {
+      z-index: 1;
+    }
+
+    /* ==========================
+   BREAKPOINTS GRANDES (monitores grandes / ultrawide)
+   ========================== */
+    @media (min-width: 1600px) {
+      :root {
+        --sidebar-max: 420px;
+        /* sidebar crece un poquito, no exagera */
+        --map-min-h: 640px;
+        /* mapa más alto */
       }
 
-      .sidebar .header {
-        text-align: center;
-        padding-bottom: 12px;
-        border-bottom: 2px solid #f0f0f0;
+      .container {
+        max-width: min(2100px, calc(100vw - (var(--pad) * 2)));
       }
 
-      .sidebar .header h1 {
-        color: #1e40af;
-        font-size: clamp(1.05rem, 0.9rem + 0.6vw, 1.5rem);
-        font-weight: 900;
-        margin: 0 0 6px 0;
+      .icon-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+      }
+    }
+
+    @media (min-width: 2000px) {
+      :root {
+        --map-min-h: 720px;
+        /* en muy grandes, mapa se ve “bien lleno” */
+      }
+    }
+
+    /* ==========================
+   BREAKPOINTS MEDIOS
+   ========================== */
+    @media (max-width: 1024px) {
+      .container {
+        grid-template-columns: clamp(240px, 30vw, 360px) minmax(0, 1fr);
       }
 
-      .sidebar .header p {
-        color: #4b5563;
-        font-size: clamp(0.85rem, 0.78rem + 0.25vw, 1rem);
-        margin: 0;
+      :root {
+        --map-min-h: 520px;
       }
 
-      /* Scroll contenido sidebar (iconos) */
-      .icon-groups {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-        overflow: auto;
-
-        /* Muy importante: evita que el sidebar estire el layout */
-        min-height: 0;
-        padding-right: 2px;
+      .icon-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
       }
+    }
 
-      .icon-group {
-        background: #f8fafc;
-        border: 2px solid #e2e8f0;
-        border-radius: 12px;
+    /* ==========================
+   MÓVIL/TABLET (columna)
+   ========================== */
+    @media (max-width: 820px) {
+      .map-wrapper {
         padding: 10px;
       }
 
-      .icon-group-title {
-        font-size: clamp(0.9rem, 0.82rem + 0.2vw, 1rem);
-        font-weight: 900;
-        color: #1e3a8a;
-        margin: 0 0 10px 0;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+      .container {
+        grid-template-columns: 1fr;
+        grid-template-rows: 58dvh auto;
+        /* mapa arriba */
       }
 
-      .icon-group-title .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 9999px;
-        background: #3b82f6;
+      #map-container {
+        min-height: 58dvh;
+        height: 58dvh;
       }
 
-      /* Grid de iconos: se adapta automáticamente */
+      .sidebar {
+        height: auto;
+        overflow: visible;
+      }
+
+      /* iconos adaptan */
       .icon-grid {
-        display: grid;
-        gap: clamp(8px, 0.9vw, 12px);
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
+
+    /* ==========================
+   MÓVILES PEQUEÑOS
+   ========================== */
+    @media (max-width: 480px) {
+      .icon-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
 
-      .icon-item {
+      .action-buttons {
+        flex-direction: column;
+      }
+    }
+
+    /* ==========================
+   EXTRA: pantallas muy bajas (laptops chicas)
+   ========================== */
+    @media (max-height: 700px) {
+      :root {
+        --map-min-h: 460px;
+      }
+
+      .container {
+        gap: 10px;
+      }
+
+      .sidebar {
+        gap: 10px;
+      }
+    }
+
+    /* ==========================
+   MOBILE UX: Bottom Sheet
+   ========================== */
+    .fab-panel {
+      display: none;
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      z-index: 9999;
+      width: 54px;
+      height: 54px;
+      border-radius: 9999px;
+      border: none;
+      background: #1d4ed8;
+      color: #fff;
+      font-weight: 900;
+      font-size: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      cursor: pointer;
+    }
+
+    @media (max-width: 820px) {
+
+      /* Mapa ocupa casi toda la pantalla */
+      .container {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+        /* solo mapa */
+      }
+
+      #map-container {
+        height: 100dvh;
+        min-height: 100dvh;
+        border-radius: 14px;
+      }
+
+      /* Sidebar se vuelve bottom sheet */
+      .sidebar {
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        z-index: 9998;
+
+        height: auto;
+        max-height: 72dvh;
+        border-radius: 16px;
+
+        transform: translateY(calc(100% - 70px));
+        /* “asoma” una parte */
+        transition: transform 0.25s ease;
+        overflow: hidden;
+      }
+
+      /* Cuando está abierto */
+      .sidebar.mobile-open {
+        transform: translateY(0);
+      }
+
+      /* Pequeño “handle” visual */
+      .sidebar::before {
+        content: "";
+        display: block;
+        width: 42px;
+        height: 5px;
+        border-radius: 999px;
+        background: #cbd5e1;
+        margin: 8px auto 4px;
+      }
+
+      /* Scroll interno del contenido (evita que el panel crezca infinito) */
+      .icon-groups {
+        max-height: 28dvh;
+        overflow: auto;
+        min-height: 0;
+      }
+
+      /* Botón flotante visible en móvil */
+      .fab-panel {
+        display: grid;
+        place-items: center;
+      }
+
+      /* Ajustes de iconos */
+      .icon-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      /* Botones guardar/regresar mejor en móvil */
+      .action-buttons {
+        flex-direction: row;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .icon-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .action-buttons {
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 820px) {
+
+      /* Sidebar como bottom sheet */
+      .sidebar {
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        z-index: 9998;
+
+        /* 🔑 CLAVE */
+        max-height: 65dvh;
+        /* NO más alto que esto */
+        height: auto;
+
+        border-radius: 16px;
         background: #fff;
-        border: 2px solid #e2e8f0;
-        border-radius: 12px;
-        cursor: pointer;
-        padding: clamp(6px, 0.8vw, 10px);
-        transition: 0.2s ease;
-        user-select: none;
 
         display: flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 0;
+        flex-direction: column;
+
+        transform: translateY(calc(100% - 70px));
+        transition: transform 0.25s ease;
       }
 
-      .icon-item:hover {
-        transform: translateY(-2px);
-        border-color: #3b82f6;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.18);
+      .sidebar.mobile-open {
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 820px) {
+
+      /* Contenido scrolleable del panel */
+      .sidebar>* {
+        flex-shrink: 0;
       }
 
-      .icon-item.selected {
-        background: #3b82f6;
-        border-color: #3b82f6;
-      }
-
-      .icon-thumb {
-        width: clamp(28px, 2.2vw, 36px);
-        height: clamp(28px, 2.2vw, 36px);
-        object-fit: contain;
-        display: block;
-        filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15));
+      .icon-groups {
+        max-height: 22dvh;
+        overflow-y: auto;
+        min-height: 0;
+        padding-right: 4px;
       }
 
       .instructions {
-        background: #eff6ff;
-        border-radius: 12px;
-        padding: clamp(10px, 1.1vw, 14px);
-        font-size: clamp(0.85rem, 0.8rem + 0.25vw, 0.98rem);
-        color: #1e3a8a;
+        max-height: 18dvh;
+        overflow-y: auto;
       }
 
-      .instructions h3 {
-        margin: 0 0 8px 0;
-        color: #1e3a8a;
-        font-weight: 900;
-      }
-
-      .instructions ul {
-        padding-left: 18px;
-        margin: 8px 0 0 0;
-      }
-      .instructions li {
-        margin-bottom: 6px;
-      }
-
-      /* Botones (Guardar / Regresar) */
+      /* Barra inferior siempre visible */
+      .status-bar,
       .action-buttons {
-        display: flex;
-        gap: 10px;
-      }
-
-      .btn-primary,
-      .btn-secondary {
-        flex: 1;
-        border: none;
-        border-radius: 12px;
-        padding: clamp(10px, 1.2vw, 12px);
-        font-weight: 900;
-        cursor: pointer;
-        transition: 0.2s ease;
-        font-size: clamp(0.9rem, 0.85rem + 0.25vw, 1rem);
-      }
-
-      .btn-primary {
-        background: #1d4ed8;
-        color: #fff;
-      }
-      .btn-primary:hover {
-        transform: translateY(-1px);
-        filter: brightness(1.05);
-      }
-      .btn-secondary {
-        background: #e5e7eb;
-        color: #111827;
-      }
-      .btn-secondary:hover {
-        transform: translateY(-1px);
-        filter: brightness(1.03);
-      }
-
-      .save-status {
-        background: #f1f5f9;
-        border: 2px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 10px 12px;
-        font-size: 0.92rem;
-        color: #0f172a;
-      }
-
-      /* Barra de estado */
-      .status-bar {
+        position: sticky;
+        bottom: 0;
         background: #fff;
-        padding: 10px 14px;
-        border-radius: 12px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 10px;
-        border: 2px solid #f1f5f9;
+        padding-top: 10px;
       }
+    }
 
-      .status-bar span {
-        font-weight: 800;
-        color: #1e40af;
-      }
-      .pin-count {
-        background: #3b82f6;
-        color: #fff;
-        padding: 4px 12px;
-        border-radius: 9999px;
-        font-size: 0.9rem;
-        font-weight: 900;
-        white-space: nowrap;
-      }
-
-      /* Scrollbar suave */
-      .icon-groups::-webkit-scrollbar {
-        width: 6px;
-      }
-      .icon-groups::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 3px;
-      }
-      .icon-groups::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 3px;
-      }
-      .icon-groups::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-      }
-
-      /* ==========================
-   MAPA (LA CLAVE DEL “NO SE VE DESPROPORCIONADO”)
-   ========================== */
-      #map-container {
-        height: 100%;
-        min-height: var(--map-min-h);
-
-        border-radius: var(--radius);
-        overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
-        background: #fff;
-
-        min-width: 0;
-      }
-
-      /* Mantén Leaflet al 100% del contenedor */
-      #map {
-        width: 100%;
-        height: 100%;
-      }
-
-      /* Evitar overlays detrás */
-      .leaflet-container {
-        z-index: 1;
-      }
-
-      /* ==========================
-   BREAKPOINTS GRANDES (monitores grandes / ultrawide)
-   ========================== */
-      @media (min-width: 1600px) {
-        :root {
-          --sidebar-max: 420px; /* sidebar crece un poquito, no exagera */
-          --map-min-h: 640px; /* mapa más alto */
-        }
-        .container {
-          max-width: min(2100px, calc(100vw - (var(--pad) * 2)));
-        }
-        .icon-grid {
-          grid-template-columns: repeat(6, minmax(0, 1fr));
-        }
-      }
-
-      @media (min-width: 2000px) {
-        :root {
-          --map-min-h: 720px; /* en muy grandes, mapa se ve “bien lleno” */
-        }
-      }
-
-      /* ==========================
-   BREAKPOINTS MEDIOS
-   ========================== */
-      @media (max-width: 1024px) {
-        .container {
-          grid-template-columns: clamp(240px, 30vw, 360px) minmax(0, 1fr);
-        }
-        :root {
-          --map-min-h: 520px;
-        }
-        .icon-grid {
-          grid-template-columns: repeat(5, minmax(0, 1fr));
-        }
-      }
-
-      /* ==========================
-   MÓVIL/TABLET (columna)
-   ========================== */
-      @media (max-width: 820px) {
-        .map-wrapper {
-          padding: 10px;
-        }
-
-        .container {
-          grid-template-columns: 1fr;
-          grid-template-rows: 58dvh auto; /* mapa arriba */
-        }
-
-        #map-container {
-          min-height: 58dvh;
-          height: 58dvh;
-        }
-
-        .sidebar {
-          height: auto;
-          overflow: visible;
-        }
-
-        /* iconos adaptan */
-        .icon-grid {
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-      }
-
-      /* ==========================
-   MÓVILES PEQUEÑOS
-   ========================== */
-      @media (max-width: 480px) {
-        .icon-grid {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-        .action-buttons {
-          flex-direction: column;
-        }
-      }
-
-      /* ==========================
-   EXTRA: pantallas muy bajas (laptops chicas)
-   ========================== */
-      @media (max-height: 700px) {
-        :root {
-          --map-min-h: 460px;
-        }
-        .container {
-          gap: 10px;
-        }
-        .sidebar {
-          gap: 10px;
-        }
-      }
-
-      /* ==========================
-   MOBILE UX: Bottom Sheet
-   ========================== */
-      .fab-panel {
-        display: none;
-        position: fixed;
-        right: 14px;
-        bottom: 14px;
-        z-index: 9999;
-        width: 54px;
-        height: 54px;
-        border-radius: 9999px;
-        border: none;
-        background: #1d4ed8;
-        color: #fff;
-        font-weight: 900;
-        font-size: 20px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-        cursor: pointer;
-      }
-
-      @media (max-width: 820px) {
-        /* Mapa ocupa casi toda la pantalla */
-        .container {
-          grid-template-columns: 1fr;
-          grid-template-rows: 1fr; /* solo mapa */
-        }
-
-        #map-container {
-          height: 100dvh;
-          min-height: 100dvh;
-          border-radius: 14px;
-        }
-
-        /* Sidebar se vuelve bottom sheet */
-        .sidebar {
-          position: fixed;
-          left: 10px;
-          right: 10px;
-          bottom: 10px;
-          z-index: 9998;
-
-          height: auto;
-          max-height: 72dvh;
-          border-radius: 16px;
-
-          transform: translateY(calc(100% - 70px)); /* “asoma” una parte */
-          transition: transform 0.25s ease;
-          overflow: hidden;
-        }
-
-        /* Cuando está abierto */
-        .sidebar.mobile-open {
-          transform: translateY(0);
-        }
-
-        /* Pequeño “handle” visual */
-        .sidebar::before {
-          content: "";
-          display: block;
-          width: 42px;
-          height: 5px;
-          border-radius: 999px;
-          background: #cbd5e1;
-          margin: 8px auto 4px;
-        }
-
-        /* Scroll interno del contenido (evita que el panel crezca infinito) */
-        .icon-groups {
-          max-height: 28dvh;
-          overflow: auto;
-          min-height: 0;
-        }
-
-        /* Botón flotante visible en móvil */
-        .fab-panel {
-          display: grid;
-          place-items: center;
-        }
-
-        /* Ajustes de iconos */
-        .icon-grid {
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-
-        /* Botones guardar/regresar mejor en móvil */
-        .action-buttons {
-          flex-direction: row;
-        }
-      }
-
-      @media (max-width: 480px) {
-        .icon-grid {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-        .action-buttons {
-          flex-direction: column;
-        }
-      }
-
-      @media (max-width: 820px) {
-        /* Sidebar como bottom sheet */
-        .sidebar {
-          position: fixed;
-          left: 10px;
-          right: 10px;
-          bottom: 10px;
-          z-index: 9998;
-
-          /* 🔑 CLAVE */
-          max-height: 65dvh; /* NO más alto que esto */
-          height: auto;
-
-          border-radius: 16px;
-          background: #fff;
-
-          display: flex;
-          flex-direction: column;
-
-          transform: translateY(calc(100% - 70px));
-          transition: transform 0.25s ease;
-        }
-
-        .sidebar.mobile-open {
-          transform: translateY(0);
-        }
-      }
-
-      @media (max-width: 820px) {
-        /* Contenido scrolleable del panel */
-        .sidebar > * {
-          flex-shrink: 0;
-        }
-
-        .icon-groups {
-          max-height: 22dvh;
-          overflow-y: auto;
-          min-height: 0;
-          padding-right: 4px;
-        }
-
-        .instructions {
-          max-height: 18dvh;
-          overflow-y: auto;
-        }
-
-        /* Barra inferior siempre visible */
-        .status-bar,
-        .action-buttons {
-          position: sticky;
-          bottom: 0;
-          background: #fff;
-          padding-top: 10px;
-        }
-      }
-
-      /* ==========================
+    /* ==========================
    MOBILE: PANEL con SCROLL + FOOTER FIJO
    ========================== */
-      @media (max-width: 820px) {
-        /* Panel bottom-sheet */
-        .sidebar {
-          position: fixed;
-          left: 10px;
-          right: 10px;
-          bottom: 10px;
-          z-index: 9998;
+    @media (max-width: 820px) {
 
-          max-height: 70dvh;
-          background: #fff;
-          border-radius: 16px;
+      /* Panel bottom-sheet */
+      .sidebar {
+        position: fixed;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        z-index: 9998;
 
-          display: flex;
-          flex-direction: column;
+        max-height: 70dvh;
+        background: #fff;
+        border-radius: 16px;
 
-          transform: translateY(calc(100% - 70px));
-          transition: transform 0.25s ease;
+        display: flex;
+        flex-direction: column;
 
-          overflow: hidden; /* importante: que el scroll sea interno */
-        }
+        transform: translateY(calc(100% - 70px));
+        transition: transform 0.25s ease;
 
-        .sidebar.mobile-open {
-          transform: translateY(0);
-        }
-
-        /* Handle */
-        .sidebar::before {
-          content: "";
-          display: block;
-          width: 44px;
-          height: 5px;
-          border-radius: 999px;
-          background: #cbd5e1;
-          margin: 8px auto 2px;
-          flex: 0 0 auto;
-        }
-
-        /* Header no scrollea */
-        .sidebar .header {
-          flex: 0 0 auto;
-          padding-top: 6px;
-        }
-
-        /* ✅ ÚNICA zona scrolleable */
-        .sidebar-scroll {
-          flex: 1 1 auto;
-          min-height: 0; /* CLAVE para que el scroll funcione en flex */
-          overflow-y: auto;
-          padding-right: 4px;
-        }
-
-        /* Footer siempre visible */
-        .sidebar-footer {
-          flex: 0 0 auto;
-          padding-top: 10px;
-          background: #fff;
-          border-top: 1px solid #eef2f7;
-        }
-
-        /* Opcional: mejorar el scroll */
-        .sidebar-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
-        .sidebar-scroll::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 999px;
-        }
-
-        /* Ajuste iconos en móvil */
-        .icon-grid {
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
+        overflow: hidden;
+        /* importante: que el scroll sea interno */
       }
 
-      @media (max-width: 480px) {
-        .icon-grid {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-        .action-buttons {
-          flex-direction: column;
-        }
+      .sidebar.mobile-open {
+        transform: translateY(0);
       }
-    </style>
-  </head>
 
-  <body class="header">
-    <!-- ================= ZONA DEL MAPA ================= -->
-    <div class="map-wrapper">
-      <!-- Botón flotante para abrir/cerrar panel (solo móvil) -->
-      <button class="fab-panel" id="fabPanel" type="button">☰</button>
+      /* Handle */
+      .sidebar::before {
+        content: "";
+        display: block;
+        width: 44px;
+        height: 5px;
+        border-radius: 999px;
+        background: #cbd5e1;
+        margin: 8px auto 2px;
+        flex: 0 0 auto;
+      }
 
-      <div class="container">
-        <div class="sidebar">
-          <div class="header">
-            <h1>UAM Azcapotzalco</h1>
-            <p>Selecciona un ícono y haz clic en el mapa</p>
-          </div>
+      /* Header no scrollea */
+      .sidebar .header {
+        flex: 0 0 auto;
+        padding-top: 6px;
+      }
 
-          <!-- ✅ SOLO ESTO SCROLLEA -->
-          <div class="sidebar-scroll">
-            <div id="iconGroups" class="icon-groups"></div>
+      /* ✅ ÚNICA zona scrolleable */
+      .sidebar-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        /* CLAVE para que el scroll funcione en flex */
+        overflow-y: auto;
+        padding-right: 4px;
+      }
 
-            <div class="instructions">
-              <h3>📋 Instrucciones</h3>
-              <ul>
-                <li>Selecciona un ícono de alguna sección</li>
-                <li>Haz clic en cualquier lugar del mapa</li>
-                <li>El ícono aparecerá como un pin</li>
-                <li>Puedes colocar múltiples pins</li>
-                <li>Cuando termines, haz clic en "Guardar"</li>
-                <li>Para salir, haz clic en "Regresar"</li>
-              </ul>
-            </div>
-          </div>
+      /* Footer siempre visible */
+      .sidebar-footer {
+        flex: 0 0 auto;
+        padding-top: 10px;
+        background: #fff;
+        border-top: 1px solid #eef2f7;
+      }
 
-          <!-- ✅ ESTO SIEMPRE VISIBLE -->
-          <div class="sidebar-footer">
-            <div class="action-buttons">
-              <button type="button" id="btnGuardar" class="btn-primary">
-                💾 Guardar
-              </button>
-              <button type="button" id="btnRegresar" class="btn-secondary">
-                ↩ Regresar
-              </button>
-            </div>
+      /* Opcional: mejorar el scroll */
+      .sidebar-scroll::-webkit-scrollbar {
+        width: 6px;
+      }
 
-            <div class="status-bar">
-              <span>Pins colocados:</span>
-              <span class="pin-count" id="pinCount">0</span>
-            </div>
+      .sidebar-scroll::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 999px;
+      }
+
+      /* Ajuste iconos en móvil */
+      .icon-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 480px) {
+      .icon-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .action-buttons {
+        flex-direction: column;
+      }
+    }
+
+    .btn-admin-map {
+      position: fixed;
+      bottom: 40px;
+      /* Cambio a la parte inferior */
+      right: 20px;
+      z-index: 99999;
+      background: #1e3a8a;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      border: 2px solid white;
+    }
+
+    .btn-admin-map:hover {
+      background: #1e40af;
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+
+<body class="header">
+  {% if role == 'admin' %}
+  <a href="{{ url_for('admin_panel') }}" class="btn-admin-map">
+    ⚙️ Panel Admin
+  </a>
+  {% endif %}
+  <!-- ================= ZONA DEL MAPA ================= -->
+  <div class="map-wrapper">
+    <!-- Botón flotante para abrir/cerrar panel (solo móvil) -->
+    <button class="fab-panel" id="fabPanel" type="button">☰</button>
+
+    <div class="container">
+      <div class="sidebar">
+        <div class="header">
+          <h1>UAM Azcapotzalco</h1>
+          <p>Selecciona un ícono y haz clic en el mapa</p>
+        </div>
+
+        <!-- ✅ SOLO ESTO SCROLLEA -->
+        <div class="sidebar-scroll">
+          <div id="iconGroups" class="icon-groups"></div>
+
+          <div class="instructions">
+            <h3>📋 Instrucciones</h3>
+            <ul>
+              <li>Selecciona un ícono de alguna sección</li>
+              <li>Haz clic en cualquier lugar del mapa</li>
+              <li>El ícono aparecerá como un pin</li>
+              <li>Puedes colocar múltiples pins</li>
+              <li>Cuando termines, haz clic en "Guardar"</li>
+              <li>Para salir, haz clic en "Regresar"</li>
+            </ul>
           </div>
         </div>
 
-        <div id="map-container">
-          <div id="map"></div>
+        <!-- ✅ ESTO SIEMPRE VISIBLE -->
+        <div class="sidebar-footer">
+          <div class="action-buttons">
+            <button type="button" id="btnGuardar" class="btn-primary">
+              💾 Guardar
+            </button>
+            <button type="button" id="btnRegresar" class="btn-secondary">
+              ↩ Regresar
+            </button>
+          </div>
+
+          <div class="status-bar">
+            <span>Pins colocados:</span>
+            <span class="pin-count" id="pinCount">0</span>
+          </div>
         </div>
       </div>
+
+      <div id="map-container">
+        <div id="map"></div>
+      </div>
     </div>
+  </div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    <script>
-      const STATIC_IMG = "{{ url_for('static', filename='img/') }}";
+  <script>
+    const STATIC_IMG = "{{ url_for('static', filename='img/') }}";
 
-      const ICONS_VIOLENCIA = [
-        { name: "VIP", src: STATIC_IMG + "Sticker Violencia - 01.png" },
-        { name: "AEP", src: STATIC_IMG + "Sticker Violencia - 02.png" },
-        { name: "VIO", src: STATIC_IMG + "Sticker Violencia - 03.png" },
-        { name: "VFI", src: STATIC_IMG + "Sticker Violencia - 04.png" },
-        { name: "FEM", src: STATIC_IMG + "Sticker Violencia - 05.png" },
-        { name: "VIN", src: STATIC_IMG + "Sticker Violencia - 06.png" },
-        { name: "VPA", src: STATIC_IMG + "Sticker Violencia - 07.png" },
-        { name: "VCO", src: STATIC_IMG + "Sticker Violencia - 08.png" },
-      ];
-      const ICONS_MEJORAMIENTO = [
-        {
-          name: "alumbrado",
-          src: STATIC_IMG + "Stickers entorno urbano-01.png",
-        },
-        { name: "bacheo", src: STATIC_IMG + "Stickers entorno urbano-02.png" },
-        {
-          name: "banqueta",
-          src: STATIC_IMG + "Stickers entorno urbano-03.png",
-        },
-        {
-          name: "arbolado",
-          src: STATIC_IMG + "Stickers entorno urbano-04.png",
-        },
-        {
-          name: "limpieza",
-          src: STATIC_IMG + "Stickers entorno urbano-05.png",
-        },
-        {
-          name: "limpieza",
-          src: STATIC_IMG + "Stickers entorno urbano-06.png",
-        },
-        {
-          name: "limpieza",
-          src: STATIC_IMG + "Stickers entorno urbano-07.png",
-        },
-        {
-          name: "limpieza",
-          src: STATIC_IMG + "Stickers entorno urbano-08.png",
-        },
-        {
-          name: "limpieza",
-          src: STATIC_IMG + "Stickers entorno urbano-09.png",
-        },
-      ];
+    const ICONS_VIOLENCIA = [
+      { name: "VIP", label: "Violencia psicológica", src: STATIC_IMG + "Sticker Violencia - 01.png" },
+      { name: "AEP", label: "Acoso sexual en espacios públicos", src: STATIC_IMG + "Sticker Violencia - 02.png" },
+      { name: "VIO", label: "Violación", src: STATIC_IMG + "Sticker Violencia - 03.png" },
+      { name: "VFI", label: "Violencia física", src: STATIC_IMG + "Sticker Violencia - 04.png" },
+      { name: "FEM", label: "Feminicidio", src: STATIC_IMG + "Sticker Violencia - 05.png" },
+      { name: "VIN", label: "Violencia institucional", src: STATIC_IMG + "Sticker Violencia - 06.png" },
+      { name: "VPA", label: "Violencia patrimonial", src: STATIC_IMG + "Sticker Violencia - 07.png" },
+      { name: "VCO", label: "Violencia comunitaria", src: STATIC_IMG + "Sticker Violencia - 08.png" },
+    ];
 
-      [...ICONS_VIOLENCIA, ...ICONS_MEJORAMIENTO].forEach((i) => {
-        const _im = new Image();
-        _im.src = i.src;
+    const ICONS_MEJORAMIENTO = [
+      { name: "DEB", label: "Deterioro en banqueta", src: STATIC_IMG + "Stickers entorno urbano-01.png" },
+      { name: "EVP", label: "Estacionamiento en vía pública", src: STATIC_IMG + "Stickers entorno urbano-02.png" },
+      { name: "COV", label: "Congestión vehicular", src: STATIC_IMG + "Stickers entorno urbano-03.png" },
+      { name: "BAP", label: "Barrera peatonal", src: STATIC_IMG + "Stickers entorno urbano-04.png" },
+      { name: "CRI", label: "Cruce inseguro", src: STATIC_IMG + "Stickers entorno urbano-05.png" },
+      { name: "CAI", label: "Calle insegura", src: STATIC_IMG + "Stickers entorno urbano-06.png" },
+      { name: "CME", label: "Ciclovía en mal estado", src: STATIC_IMG + "Stickers entorno urbano-07.png" },
+      { name: "CSC", label: "Ciclovía sin conexión", src: STATIC_IMG + "Stickers entorno urbano-08.png" },
+      { name: "STP", label: "Calle en mal estado", src: STATIC_IMG + "Stickers entorno urbano-09.png" },
+    ];
+
+    [...ICONS_VIOLENCIA, ...ICONS_MEJORAMIENTO].forEach((i) => {
+      const _im = new Image();
+      _im.src = i.src;
+    });
+
+    const groupsContainer = document.getElementById("iconGroups");
+    const pinCountElement = document.getElementById("pinCount");
+    let selectedIconUrl = null;
+    let selectedPinCode = null;
+    let pinCount = 0;
+
+    function renderGroup(title, colorDot, icons) {
+      const group = document.createElement("div");
+      group.className = "icon-group";
+
+      const header = document.createElement("div");
+      header.className = "icon-group-title";
+      header.innerHTML = `<span class="dot" style="background:${colorDot}"></span>${title}`;
+      group.appendChild(header);
+
+      const grid = document.createElement("div");
+      grid.className = "icon-grid";
+
+      icons.forEach((icon, idx) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "icon-item";
+        btn.innerHTML = `<img class="icon-thumb" src="${icon.src}" alt="${icon.label || icon.name}">`;
+        btn.title = icon.label || icon.name;
+
+        btn.addEventListener("click", () => {
+          document
+            .querySelectorAll(".icon-item")
+            .forEach((el) => el.classList.remove("selected"));
+          btn.classList.add("selected");
+          selectedIconUrl = icon.src;
+          selectedPinCode = icon.name;
+        });
+
+        if (!selectedIconUrl && idx === 0) {
+          btn.classList.add("selected");
+          selectedIconUrl = icon.src;
+          selectedPinCode = icon.name;
+        }
+
+        grid.appendChild(btn);
       });
 
-      const groupsContainer = document.getElementById("iconGroups");
-      const pinCountElement = document.getElementById("pinCount");
-      let selectedIconUrl = null;
-      let selectedPinCode = null;
-      let pinCount = 0;
+      group.appendChild(grid);
+      groupsContainer.appendChild(group);
+    }
 
-      function renderGroup(title, colorDot, icons) {
-        const group = document.createElement("div");
-        group.className = "icon-group";
+    renderGroup("Violencia", "#ef4444", ICONS_VIOLENCIA);
+    renderGroup("Mejoramiento Urbano", "#10b981", ICONS_MEJORAMIENTO);
 
-        const header = document.createElement("div");
-        header.className = "icon-group-title";
-        header.innerHTML = `<span class="dot" style="background:${colorDot}"></span>${title}`;
-        group.appendChild(header);
+    const UAM_AZCAPOTZALCO = [19.5031, -99.1869];
+    const map = L.map("map").setView(UAM_AZCAPOTZALCO, 16);
 
-        const grid = document.createElement("div");
-        grid.className = "icon-grid";
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
 
-        icons.forEach((icon, idx) => {
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "icon-item";
-          btn.innerHTML = `<img class="icon-thumb" src="${icon.src}" alt="${icon.name}">`;
-          btn.title = icon.name;
+    const uamIcon = L.icon({
+      iconUrl: STATIC_IMG + "Uam_azc.webp",
+      iconSize: [40, 40],
+      iconAnchor: [20, 40],
+      popupAnchor: [0, -36],
+    });
+    L.marker(UAM_AZCAPOTZALCO, { icon: uamIcon })
+      .addTo(map)
+      .bindPopup(
+        "<b>UAM Azcapotzalco</b><br>Universidad Autónoma Metropolitana"
+      );
 
-          btn.addEventListener("click", () => {
-            document
-              .querySelectorAll(".icon-item")
-              .forEach((el) => el.classList.remove("selected"));
-            btn.classList.add("selected");
-            selectedIconUrl = icon.src;
-            selectedPinCode = icon.name;
-          });
+    // ✅ Control de capas (para ocultar/mostrar)
+    const layerControl = L.control.layers(null, null, { collapsed: false }).addTo(map);
 
-          if (!selectedIconUrl && idx === 0) {
-            btn.classList.add("selected");
-            selectedIconUrl = icon.src;
-            selectedPinCode = icon.name;
+    // ✅ Cargar capas (Shapefiles) subidas por admin
+    async function loadLayers() {
+      try {
+        const res = await fetch("/api/layers");
+        if (res.ok) {
+          const layers = await res.json();
+          for (const l of layers) {
+            try {
+              const g = await fetch(l.url).then(r => r.json());
+
+              // Usar el color definido o el default
+              const color = l.color || '#3388ff';
+
+              const geoLayer = L.geoJSON(g, {
+                // Definir estilo para puntos (iconos)
+                pointToLayer: (feature, latlng) => {
+                  if (l.icon) {
+                    const icon = L.icon({
+                      iconUrl: l.icon,
+                      iconSize: [32, 32],
+                      iconAnchor: [16, 32],
+                      popupAnchor: [0, -32]
+                    });
+                    return L.marker(latlng, { icon: icon });
+                  }
+                  // Si no hay icono, usar círculo por defecto
+                  return L.circleMarker(latlng, {
+                    radius: 6,
+                    fillColor: color,
+                    color: "#fff",
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                  });
+                },
+                // Estilo para líneas y polígonos
+                style: { color: color, weight: 2, fillOpacity: 0.2 },
+
+                onEachFeature: (f, layer) => {
+                  if (f.properties) {
+                    let txt = `<b>${l.name}</b><br>`;
+                    let keys = Object.keys(f.properties).slice(0, 5);
+                    for (let k of keys) txt += `<b>${k}:</b> ${f.properties[k]}<br>`;
+                    layer.bindPopup(txt);
+                  }
+                }
+              });
+
+              // Agregar al mapa y al control
+              geoLayer.addTo(map);
+              layerControl.addOverlay(geoLayer, `<span style="color:${color}">■</span> ${l.name}`);
+
+            } catch (err) { console.error("Error cargando capa " + l.name, err); }
           }
+        }
+      } catch (e) { console.error(e); }
+    }
+    loadLayers();
 
-          grid.appendChild(btn);
-        });
+    // ✅ Pines pendientes (NO guardados aún en BD)
+    const pendingPins = [];
 
-        group.appendChild(grid);
-        groupsContainer.appendChild(group);
-      }
+    // UI botones
+    const btnGuardar = document.getElementById("btnGuardar");
+    const btnRegresar = document.getElementById("btnRegresar");
+    const saveStatus = document.getElementById("saveStatus");
 
-      renderGroup("Violencia", "#ef4444", ICONS_VIOLENCIA);
-      renderGroup("Mejoramiento Urbano", "#10b981", ICONS_MEJORAMIENTO);
+    function showStatus(msg) {
+      if (!saveStatus) return;
+      saveStatus.style.display = "block";
+      saveStatus.textContent = msg;
+    }
 
-      const UAM_AZCAPOTZALCO = [19.5083, -99.1856];
-      const map = L.map("map").setView(UAM_AZCAPOTZALCO, 16);
+    map.on("click", function (e) {
+      if (!selectedIconUrl) return;
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      }).addTo(map);
-
-      const uamIcon = L.icon({
-        iconUrl: STATIC_IMG + "Uam_azc.webp",
-        iconSize: [40, 40],
-        iconAnchor: [20, 40],
-        popupAnchor: [0, -36],
+      const imgIcon = L.icon({
+        iconUrl: selectedIconUrl,
+        iconSize: [36, 36],
+        iconAnchor: [18, 36],
+        popupAnchor: [0, -32],
       });
-      L.marker(UAM_AZCAPOTZALCO, { icon: uamIcon })
-        .addTo(map)
-        .bindPopup(
-          "<b>UAM Azcapotzalco</b><br>Universidad Autónoma Metropolitana"
-        );
 
-      // ✅ Pines pendientes (NO guardados aún en BD)
-      const pendingPins = [];
+      // ✅ se muestra el pin en el mapa (visual), pero NO se guarda aún en BD
+      const marker = L.marker(e.latlng, { icon: imgIcon }).addTo(map);
 
-      // UI botones
-      const btnGuardar = document.getElementById("btnGuardar");
-      const btnRegresar = document.getElementById("btnRegresar");
-      const saveStatus = document.getElementById("saveStatus");
+      // ✅ guardamos en memoria (pendiente)
+      pendingPins.push({
+        lat: e.latlng.lat,
+        lon: e.latlng.lng,
+        codigo_pin: selectedPinCode,
+        nom: selectedIconUrl,
+        // idu: "" // opcional si luego lo usas
+      });
 
-      function showStatus(msg) {
-        if (!saveStatus) return;
-        saveStatus.style.display = "block";
-        saveStatus.textContent = msg;
-      }
+      pinCount++;
+      pinCountElement.textContent = pinCount;
 
-      map.on("click", function (e) {
-        if (!selectedIconUrl) return;
-
-        const imgIcon = L.icon({
-          iconUrl: selectedIconUrl,
-          iconSize: [36, 36],
-          iconAnchor: [18, 36],
-          popupAnchor: [0, -32],
-        });
-
-        // ✅ se muestra el pin en el mapa (visual), pero NO se guarda aún en BD
-        const marker = L.marker(e.latlng, { icon: imgIcon }).addTo(map);
-
-        // ✅ guardamos en memoria (pendiente)
-        pendingPins.push({
-          lat: e.latlng.lat,
-          lon: e.latlng.lng,
-          codigo_pin: selectedPinCode,
-          nom: selectedIconUrl,
-          // idu: "" // opcional si luego lo usas
-        });
-
-        pinCount++;
-        pinCountElement.textContent = pinCount;
-
-        marker.bindPopup(`
+      marker.bindPopup(`
     <div style="text-align:center; margin-bottom:6px;">
       <img src="${selectedIconUrl}" alt="pin" style="width:28px; height:28px; object-fit:contain;">
     </div>
@@ -896,136 +997,137 @@
     </div>
   `);
 
-        showStatus(`Pines pendientes por guardar: ${pendingPins.length}`);
-      });
+      showStatus(`Pines pendientes por guardar: ${pendingPins.length}`);
+    });
 
-      // ✅ Guardar en bloque
-      btnGuardar?.addEventListener("click", async () => {
-        if (pendingPins.length === 0) {
-          showStatus("No hay pines pendientes por guardar.");
+    // ✅ Guardar en bloque
+    btnGuardar?.addEventListener("click", async () => {
+      if (pendingPins.length === 0) {
+        showStatus("No hay pines pendientes por guardar.");
+        return;
+      }
+
+      btnGuardar.disabled = true;
+      showStatus("Guardando pines...");
+
+      try {
+        const res = await fetch("/api/pins/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pins: pendingPins }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showStatus(`Error: ${data?.error || "No se pudo guardar"}`);
           return;
         }
 
-        btnGuardar.disabled = true;
-        showStatus("Guardando pines...");
+        // ✅ si todo OK, limpiamos pendientes
+        const saved = data.saved || 0;
+        pendingPins.length = 0;
 
+        showStatus(`✅ Pines guardados: ${saved}`);
+      } catch (err) {
+        console.error(err);
+        showStatus("Error de red al guardar pines.");
+      } finally {
+        btnGuardar.disabled = false;
+      }
+    });
+
+    // ✅ Regresar a otra página (cambia la URL a la que tú quieras)
+    btnRegresar?.addEventListener("click", () => {
+      // ejemplo: regresar a home externa o interna
+      window.location.href =
+        "https://desarrollophp2.azc.uam.mx/labestudiosurbanos/index.html";
+    });
+  </script>
+
+  <!-- JS del menú (sin cambios) -->
+  <script src="static/img/JS/menu.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", setupMenu);
+  </script>
+  <script>
+    (function () {
+      // Si es navegación interna, ponemos esta bandera en true
+      let isInternalNavigation = false;
+
+      function isSameOrigin(href) {
         try {
-          const res = await fetch("/api/pins/bulk", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ pins: pendingPins }),
-          });
+          const url = new URL(href, window.location.href);
+          return url.origin === window.location.origin;
+        } catch (e) {
+          return false;
+        }
+      }
 
-          const data = await res.json();
+      // Interceptar clicks en enlaces
+      document.addEventListener(
+        "click",
+        function (e) {
+          const a = e.target.closest("a[href]");
+          if (!a) return;
 
-          if (!res.ok) {
-            showStatus(`Error: ${data?.error || "No se pudo guardar"}`);
+          const href = a.getAttribute("href");
+          if (!href) return;
+
+          // Enlaces solo con # (anclas internas)
+          if (href.startsWith("#")) {
+            isInternalNavigation = true; // no cerrar sesión
             return;
           }
 
-          // ✅ si todo OK, limpiamos pendientes
-          const saved = data.saved || 0;
-          pendingPins.length = 0;
-
-          showStatus(`✅ Pines guardados: ${saved}`);
-        } catch (err) {
-          console.error(err);
-          showStatus("Error de red al guardar pines.");
-        } finally {
-          btnGuardar.disabled = false;
-        }
-      });
-
-      // ✅ Regresar a otra página (cambia la URL a la que tú quieras)
-      btnRegresar?.addEventListener("click", () => {
-        // ejemplo: regresar a home externa o interna
-        window.location.href =
-          "https://desarrollophp2.azc.uam.mx/labestudiosurbanos/index.html";
-      });
-    </script>
-
-    <!-- JS del menú (sin cambios) -->
-    <script src="static/img/JS/menu.js"></script>
-    <script>
-      document.addEventListener("DOMContentLoaded", setupMenu);
-    </script>
-    <script>
-      (function () {
-        // Si es navegación interna, ponemos esta bandera en true
-        let isInternalNavigation = false;
-
-        function isSameOrigin(href) {
-          try {
-            const url = new URL(href, window.location.href);
-            return url.origin === window.location.origin;
-          } catch (e) {
-            return false;
-          }
-        }
-
-        // Interceptar clicks en enlaces
-        document.addEventListener(
-          "click",
-          function (e) {
-            const a = e.target.closest("a[href]");
-            if (!a) return;
-
-            const href = a.getAttribute("href");
-            if (!href) return;
-
-            // Enlaces solo con # (anclas internas)
-            if (href.startsWith("#")) {
-              isInternalNavigation = true; // no cerrar sesión
-              return;
-            }
-
-            if (isSameOrigin(href)) {
-              // Navegación dentro del MISMO dominio → no cerramos sesión
-              isInternalNavigation = true;
-            } else {
-              // Navegación a OTRO dominio → cerramos sesión ya
-              isInternalNavigation = false;
-              navigator.sendBeacon("/logout");
-            }
-          },
-          true
-        );
-
-        // Interceptar formularios (por si mandan a otro dominio)
-        document.addEventListener(
-          "submit",
-          function (e) {
-            const form = e.target;
-            const action = form.getAttribute("action") || window.location.href;
-
-            if (isSameOrigin(action)) {
-              isInternalNavigation = true; // formulario dentro del mismo dominio
-            } else {
-              isInternalNavigation = false;
-              navigator.sendBeacon("/logout");
-            }
-          },
-          true
-        );
-
-        // Cuando la página se va a descargar (cerrar pestaña, recargar, irse a otro sitio)
-        window.addEventListener("beforeunload", function () {
-          // Si NO es navegación interna dentro del mismo dominio → cerrar sesión
-          if (!isInternalNavigation) {
+          if (isSameOrigin(href)) {
+            // Navegación dentro del MISMO dominio → no cerramos sesión
+            isInternalNavigation = true;
+          } else {
+            // Navegación a OTRO dominio → cerramos sesión ya
+            isInternalNavigation = false;
             navigator.sendBeacon("/logout");
           }
-          // Para la próxima carga, que vuelva a iniciar en false
-          isInternalNavigation = false;
-        });
-      })();
+        },
+        true
+      );
 
-      // Toggle del panel móvil
-      const fabPanel = document.getElementById("fabPanel");
-      const sidebar = document.querySelector(".sidebar");
+      // Interceptar formularios (por si mandan a otro dominio)
+      document.addEventListener(
+        "submit",
+        function (e) {
+          const form = e.target;
+          const action = form.getAttribute("action") || window.location.href;
 
-      fabPanel?.addEventListener("click", () => {
-        sidebar?.classList.toggle("mobile-open");
+          if (isSameOrigin(action)) {
+            isInternalNavigation = true; // formulario dentro del mismo dominio
+          } else {
+            isInternalNavigation = false;
+            navigator.sendBeacon("/logout");
+          }
+        },
+        true
+      );
+
+      // Cuando la página se va a descargar (cerrar pestaña, recargar, irse a otro sitio)
+      window.addEventListener("beforeunload", function () {
+        // Si NO es navegación interna dentro del mismo dominio → cerrar sesión
+        if (!isInternalNavigation) {
+          navigator.sendBeacon("/logout");
+        }
+        // Para la próxima carga, que vuelva a iniciar en false
+        isInternalNavigation = false;
       });
-    </script>
-  </body>
+    })();
+
+    // Toggle del panel móvil
+    const fabPanel = document.getElementById("fabPanel");
+    const sidebar = document.querySelector(".sidebar");
+
+    fabPanel?.addEventListener("click", () => {
+      sidebar?.classList.toggle("mobile-open");
+    });
+  </script>
+</body>
+
 </html>

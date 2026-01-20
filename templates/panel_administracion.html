@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8" />
+  <title>Panel de Administración</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, Arial;
+      margin: 0;
+      background: #f6f7fb;
+    }
+
+    .wrap {
+      max-width: 900px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, .08);
+      padding: 18px 20px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 10px 0 16px;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    label {
+      display: block;
+      margin-top: 8px;
+      font-weight: 600;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin-top: 4px;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .row>div {
+      flex: 1 1 160px;
+    }
+
+    button {
+      margin-top: 14px;
+      padding: 10px 16px;
+      border: 0;
+      border-radius: 8px;
+      background: #111;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th,
+    td {
+      text-align: left;
+      border-bottom: 1px solid #eee;
+      padding: 8px;
+    }
+
+    a.btn {
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      text-decoration: none;
+      color: #111;
+      background: #fff;
+    }
+
+    .msgs {
+      color: #b00;
+      margin: 6px 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <a class="btn" href="{{ url_for('index') }}">← Volver al mapa</a>
+    <h1>Panel de Administración</h1>
+
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% if msgs %}
+    <div class="msgs">
+      {% for cat, m in msgs %}
+      <div>{{ m }}</div>
+      {% endfor %}"W"
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="card">
+      <h2>Crear administrador</h2>
+      <form method="post" action="{{ url_for('admin_create') }}">
+        <div class="row">
+          <div>
+            <label>Usuario</label>
+            <input type="text" name="username" required>
+          </div>
+          <div>
+            <label>Contraseña</label>
+            <input type="password" name="password" required>
+          </div>
+        </div>
+        <button type="submit">Crear admin</button>
+      </form>
+
+      <h3 style="margin-top:16px;">Administradores existentes</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Usuario</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in admins %}
+          <tr>
+            <td>{{ a.id }}</td>
+            <td>{{ a.username }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Configuración de mapa (inicio)</h2>
+      <div class="row">
+        <div>
+          <label>Longitud</label>
+          <input id="lon" type="number" step="0.000001" value="{{ settings.center_lon }}">
+        </div>
+        <div>
+          <label>Latitud</label>
+          <input id="lat" type="number" step="0.000001" value="{{ settings.center_lat }}">
+        </div>
+        <div>
+          <label>Zoom</label>
+          <input id="zoom" type="number" step="0.1" value="{{ settings.zoom }}">
+        </div>
+      </div>
+      <button onclick="guardar()">Guardar</button>
+    </div>
+    <div class="card">
+      <h2>Gestión de Capas (Shapefile)</h2>
+      <p style="font-size:0.9em; color:#666;">Sube un ZIP que contenga tus archivos .shp, .shx y .dbf. Se procesarán
+        para verse en el mapa.</p>
+
+      <form method="post" action="{{ url_for('upload_layer') }}" enctype="multipart/form-data">
+        <label>Archivo ZIP</label>
+        <input type="file" name="layer_file" accept=".zip" required>
+
+        <label>Nombre de la capa</label>
+        <input type="text" name="layer_name" placeholder="Ej. Entorno Urbano">
+
+        <label>Color en el mapa (Geometrías)</label>
+        <input type="color" name="layer_color" value="#3388ff" style="height:40px; cursor:pointer;">
+
+        <label style="margin-top:10px;">Icono personalizado (Opcional, para puntos)</label>
+        <p style="font-size:0.8rem; color:#666; margin:2px 0 6px;">Sube una imagen (PNG/JPG/SVG) si quieres que los
+          puntos se vean con este icono.</p>
+        <input type="file" name="layer_icon" accept=".png,.jpg,.jpeg,.svg,.webp">
+
+        <label style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+          <input type="checkbox" name="overwrite" style="width:auto; margin:0">
+          Sobrescribir si ya existe
+        </label>
+
+        <button type="submit" style="background:#1e40af;">Subir y Procesar</button>
+      </form>
+
+      <h3 style="margin-top:20px;">Capas activas</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Fecha</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for layer in layers %}
+          <tr>
+            <td>
+              <span
+                style="display:inline-block; width:12px; height:12px; background:{{ layer.color }}; border-radius:50%; margin-right:6px;"></span>
+              {{ layer.name }}
+            </td>
+            <td>{{ layer.created_at[:10] }}</td>
+            <td>
+              <form method="POST" action="{{ url_for('delete_layer', filename=layer.filename) }}"
+                onsubmit="return confirm('¿Seguro que quieres borrar esta capa?');" style="margin:0;">
+                <button type="submit"
+                  style="background:none; border:none; padding:0; color:#b00; font-weight:bold; cursor:pointer; text-decoration:underline;">Borrar</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="3" style="text-align:center; color:#999;">No hay capas.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    async function guardar() {
+      const body = {
+        center_lon: parseFloat(document.getElementById('lon').value),
+        center_lat: parseFloat(document.getElementById('lat').value),
+        zoom: parseFloat(document.getElementById('zoom').value)
+      };
+      const r = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (r.ok) alert('Guardado'); else alert('Error guardando configuración');
+    }
+  </script>
+</body>
+
+</html>
