@@ -1,0 +1,323 @@
+/* Admin Panel Redesign - Shared Styles */
+
+:root {
+    --bg-color: #f3e2da;
+    /* Brand Cream */
+    --card-bg: #ffffff;
+    --text-color: #111827;
+    --text-muted: #4b5563;
+    --primary: #1e3a8a;
+    /* Dark Blue */
+    --primary-hover: #1e40af;
+    --danger: #ef4444;
+    --border-color: #e5e7eb;
+    --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --radius: 16px;
+    --font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+
+body {
+    font-family: var(--font-family);
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.5;
+    padding-bottom: 40px;
+}
+
+.wrap {
+    max-width: 1000px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+
+/* Typography */
+h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--text-color);
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.025em;
+}
+
+h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+}
+
+p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+
+/* Cards */
+.card {
+    background: var(--card-bg);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Forms */
+label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-color);
+    font-size: 0.95rem;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="email"],
+input[type="date"],
+select,
+input[type="file"]::file-selector-button {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: #f9fafb;
+    font-size: 1rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    box-sizing: border-box;
+}
+
+input:focus,
+select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    background-color: #fff;
+}
+
+/* Buttons */
+button,
+.btn,
+input[type="file"]::file-selector-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 10px;
+    background-color: var(--primary);
+    color: white;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    text-decoration: none;
+}
+
+button:hover,
+.btn:hover,
+input[type="file"]::file-selector-button:hover {
+    background-color: var(--primary-hover);
+}
+
+button:active,
+.btn:active {
+    transform: translateY(1px);
+}
+
+button[type="submit"] {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+/* Secondary / Outline Button Style */
+.btn-outline,
+a.btn {
+    background-color: white;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.btn-outline:hover,
+a.btn:hover {
+    background-color: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+input[type="file"] {
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+
+input[type="file"]::file-selector-button {
+    width: auto;
+    margin-right: 1rem;
+}
+
+/* Layout Utilities */
+.row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 1rem;
+}
+
+th {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    background-color: #f3f4f6;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--border-color);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+}
+
+th:first-child {
+    border-top-left-radius: 8px;
+}
+
+th:last-child {
+    border-top-right-radius: 8px;
+}
+
+td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-color);
+    vertical-align: middle;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+/* Alerts / Flashes */
+.msgs {
+    margin-bottom: 1.5rem;
+}
+
+.msgs div {
+    background-color: #fee2e2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+/* Topbar */
+.topbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 2rem;
+    background: white;
+    padding: 1rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.topbar .user-info {
+    margin-left: auto;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+/* Checkbox specific */
+input[type="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-right: 0.5rem;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    margin-top: 1rem;
+    cursor: pointer;
+}
+
+.danger-link {
+    color: var(--danger);
+    font-weight: 600;
+    text-decoration: underline;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.danger-link:hover {
+    color: #991b1b;
+}
+
+input[type="color"] {
+    width: 100%;
+    height: 48px;
+    padding: 4px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* New Refined UI Styles */
+.input-group-inline {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+input[type="color"].color-circle {
+    width: 46px !important;
+    height: 46px !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 50% !important;
+    cursor: pointer;
+    overflow: hidden;
+    flex-shrink: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+
+.color-circle:hover {
+    transform: scale(1.05);
+}
+
+.color-circle::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.color-circle::-webkit-color-swatch {
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    box-sizing: border-box;
+}

@@ -5,12 +5,11 @@ from functools import wraps
 from io import BytesIO
 import json
 
-import pandas as pd
+import pandas as pd 
 from flask import (
     Flask, render_template, request, jsonify, send_file, g,
     redirect, url_for, session, flash
 )
-from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import zipfile
@@ -135,7 +134,6 @@ def init_db():
         CREATE TABLE IF NOT EXISTS layers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            filename TEXT NOT NULL UNIQUE,
             filename TEXT NOT NULL UNIQUE,
             color TEXT DEFAULT '#3388ff',
             icon TEXT,
@@ -876,5 +874,5 @@ if __name__ == "__main__":
     with app.app_context():
         init_db()
 
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    app.run(host="0.0.0.0", port=8888, debug=True)
 

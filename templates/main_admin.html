@@ -1,43 +1,20 @@
 <!doctype html>
 <html lang="es">
+
 <head>
   <meta charset="utf-8" />
   <title>Administración principal</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    :root { --card-bg:#fff; --muted:#f6f7fb; --border:#e8e9ef; }
-    body { font-family: system-ui, Arial; margin:0; background: var(--muted); color:#111; }
-    .wrap { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
-    .topbar { display:flex; gap:10px; align-items:center; margin-bottom: 12px; }
-    .btn {
-      display:inline-block; padding:8px 12px; border-radius:10px; border:1px solid #ccc;
-      background:#fff; color:#111; text-decoration:none; cursor:pointer;
-    }
-    .card {
-      background: var(--card-bg); border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,.08);
-      padding: 18px 20px; margin-bottom: 18px; border: 1px solid var(--border);
-    }
-    h1 { margin: 6px 0 12px; }
-    h2 { margin: 0 0 10px; font-size: 18px; }
-    label { display:block; margin-top:10px; font-weight:600; }
-    input, select {
-      width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; margin-top:4px; box-sizing:border-box;
-      background:#fff;
-    }
-    .row { display:flex; gap:12px; flex-wrap:wrap; }
-    .row > div { flex:1 1 170px; min-width: 170px; }
-    .actions { margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; }
-    .hint { color:#555; font-size:12px; margin-top:4px; }
-    .section-title { font-weight:700; margin: 12px 0 6px; }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='admin_style.css') }}">
 </head>
+
 <body>
   <div class="wrap">
     <div class="topbar">
-      <a class="btn" href="{{ url_for('index') }}">← Volver al mapa</a>
-      <a class="btn" href="{{ url_for('admin_panel') }}">Panel admin (usuarios)</a>
-      <a class="btn" href="{{ url_for('logout') }}">Cerrar sesión</a>
-      <div style="margin-left:auto; font-size:13px;">Sesión: <strong>{{ user }}</strong></div>
+      <a class="btn btn-outline" href="{{ url_for('index') }}">← Volver al mapa</a>
+      <a class="btn btn-outline" href="{{ url_for('admin_panel') }}">Panel admin (usuarios)</a>
+      <a class="btn btn-outline" href="{{ url_for('logout') }}">Cerrar sesión</a>
+      <div class="user-info">Sesión: <strong>{{ user }}</strong></div>
     </div>
 
     <h1>Administración principal</h1>
@@ -59,43 +36,49 @@
           <input id="zoom" type="number" step="0.1" value="{{ settings.zoom }}">
         </div>
       </div>
-      <div class="actions">
-        <button class="btn" onclick="guardarSettings()">Guardar</button>
+      <div style="margin-top: 1rem;">
+        <button onclick="guardarSettings()">Guardar Configuración</button>
       </div>
-      <div class="hint">Estos valores se aplican como centro y zoom por defecto cuando cualquier usuario abre la aplicación.</div>
+      <p style="margin-top: 12px; font-size: 0.9rem;">Estos valores se aplican como centro y zoom por defecto cuando
+        cualquier usuario abre la aplicación.</p>
     </div>
 
     <!-- Descargas -->
     <div class="card">
       <h2>Descargar reportes</h2>
 
-      <div class="section-title">Por día</div>
-      <div class="row">
+      <h3>Por día</h3>
+      <div class="row" style="align-items: end;">
         <div><input type="date" id="day"></div>
-        <div class="actions"><button class="btn" onclick="descargarDia()">Descargar día</button></div>
+        <div><button onclick="descargarDia()">Descargar día</button></div>
       </div>
 
-      <div class="section-title">Por mes</div>
-      <div class="row">
+      <h3>Por mes</h3>
+      <div class="row" style="align-items: end;">
         <div>
-          <!-- input month no es soportado en todos los navegadores; fallback con text -->
-          <label style="font-weight:400;margin-top:0;">Formato: YYYY-MM</label>
+          <label style="font-weight:400; margin-top:0;">Formato: YYYY-MM</label>
           <input type="text" id="month" placeholder="2025-09" pattern="\\d{4}-\\d{2}">
         </div>
-        <div class="actions"><button class="btn" onclick="descargarMes()">Descargar mes</button></div>
+        <div><button onclick="descargarMes()">Descargar mes</button></div>
       </div>
 
-      <div class="section-title">Por año</div>
-      <div class="row">
+      <h3>Por año</h3>
+      <div class="row" style="align-items: end;">
         <div><input type="number" id="year" placeholder="2025" min="2000" max="2100" step="1"></div>
-        <div class="actions"><button class="btn" onclick="descargarAnio()">Descargar año</button></div>
+        <div><button onclick="descargarAnio()">Descargar año</button></div>
       </div>
 
-      <div class="section-title">Por rango</div>
-      <div class="row">
-        <div><input type="date" id="rStart"></div>
-        <div><input type="date" id="rEnd"></div>
-        <div class="actions"><button class="btn" onclick="descargarRango()">Descargar rango</button></div>
+      <h3>Por rango</h3>
+      <div class="row" style="align-items: end;">
+        <div>
+          <label>Inicio</label>
+          <input type="date" id="rStart">
+        </div>
+        <div>
+          <label>Fin</label>
+          <input type="date" id="rEnd">
+        </div>
+        <div><button onclick="descargarRango()">Descargar rango</button></div>
       </div>
     </div>
   </div>
@@ -142,4 +125,5 @@
     }
   </script>
 </body>
+
 </html>
