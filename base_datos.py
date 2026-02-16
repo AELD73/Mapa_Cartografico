@@ -1,19 +1,22 @@
 import sqlite3
+import pandas as pd
+from io import BytesIO
 
-# Conexión a la base de datos correcta
-conn = sqlite3.connect("pines.db")
-cursor = conn.cursor()
+def exportar_base_datos_excel():
+    conn = sqlite3.connect("pines.db")
 
-# Ver las tablas disponibles
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-print("Tablas disponibles:", cursor.fetchall())
+    output = BytesIO()
 
-# Consultar los usuarios
-cursor.execute("SELECT * FROM users")
-usuarios = cursor.fetchall()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        tablas = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table';"
+        ).fetchall()
 
-print("\nUsuarios registrados:")
-for usuario in usuarios:
-    print(usuario)
+        for (tabla,) in tablas:
+            df = pd.read_sql_query(f"SELECT * FROM {tabla}", conn)
+            df.to_excel(writer, sheet_name=tabla, index=False)
 
-conn.close()
+    conn.close()
+    output.seek(0)
+
+    return output

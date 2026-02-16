@@ -866,6 +866,24 @@ def get_layers_api():
         })
     return jsonify(data)
 
+"""
+Cración de ruta para descarga de BD en formato Excel, usando la función exportar_base_datos_excel de base_datos.py
+"""
+from flask import send_file
+from base_datos import exportar_base_datos_excel
+
+@app.route("/admin/download")
+def download_db():
+    output = exportar_base_datos_excel()
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="base_completa.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+
 # -----------------------
 # Main
 # -----------------------
