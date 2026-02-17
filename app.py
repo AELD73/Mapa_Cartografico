@@ -219,13 +219,15 @@ def enforce_idle_timeout():
 @app.route("/")
 def index():
     
+    folio = request.args.get("folio")
+
     # Si hay admin logueado
     if "user_id" in session:
-        return render_template("index.html", user=session.get("username"), role=session.get("role"))
+        return render_template("index.html", user=session.get("username"), role=session.get("role"), folio=folio)
 
     # Si hay una visita registrada (participante normal)
     if "visita_id" in session:
-        return render_template("index.html", user=None, role=None)
+        return render_template("index.html", user=None, role=None, folio=folio)
 
     # Si no ha llenado formulario, mostrar login.html (encuesta)
     return render_template("login.html")
@@ -612,8 +614,7 @@ def login():
     session["last_activity"] = datetime.utcnow().isoformat()
 
 
-    flash(f"Gracias por tu participación. Tu folio es: {visita_id}", "success")
-    return redirect(url_for("index"))
+    return redirect(url_for("index", folio=visita_id))
 
 
 @app.route("/logout")

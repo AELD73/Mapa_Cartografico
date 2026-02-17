@@ -767,7 +767,8 @@
     .legend-modal {
       background: #fff;
       width: 100%;
-      max-width: 600px;
+      max-width: 900px;
+      /* Increased width for 2 columns */
       max-height: 85vh;
       border-radius: 20px;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
@@ -819,6 +820,15 @@
     .legend-content {
       padding: 20px;
       overflow-y: auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+    }
+
+    @media (max-width: 768px) {
+      .legend-content {
+        grid-template-columns: 1fr;
+      }
     }
 
     .legend-item {
@@ -1100,6 +1110,13 @@
               geoLayer.addTo(map);
               layerControl.addOverlay(geoLayer, `<span style="color:${color}">■</span> ${l.name}`);
 
+              // Permitir poner pines sobre la capa
+              geoLayer.on('click', function (e) {
+                if (selectedIconUrl) {
+                  addPin(e.latlng);
+                }
+              });
+
             } catch (err) { console.error("Error cargando capa " + l.name, err); }
           }
         }
@@ -1121,7 +1138,7 @@
       saveStatus.textContent = msg;
     }
 
-    map.on("click", function (e) {
+    function addPin(latlng) {
       if (!selectedIconUrl) return;
 
       const imgIcon = L.icon({
@@ -1132,12 +1149,12 @@
       });
 
       // ✅ se muestra el pin en el mapa (visual), pero NO se guarda aún en BD
-      const marker = L.marker(e.latlng, { icon: imgIcon }).addTo(map);
+      const marker = L.marker(latlng, { icon: imgIcon }).addTo(map);
 
       // ✅ guardamos en memoria (pendiente)
       pendingPins.push({
-        lat: e.latlng.lat,
-        lon: e.latlng.lng,
+        lat: latlng.lat,
+        lon: latlng.lng,
         codigo_pin: selectedPinCode,
         nom: selectedIconUrl,
         // idu: "" // opcional si luego lo usas
@@ -1147,18 +1164,22 @@
       pinCountElement.textContent = pinCount;
 
       marker.bindPopup(`
-    <div style="text-align:center; margin-bottom:6px;">
-      <img src="${selectedIconUrl}" alt="pin" style="width:28px; height:28px; object-fit:contain;">
-    </div>
-    <div style="font-size:12px;">
-      Lat: ${e.latlng.lat.toFixed(6)}<br>
-      Lng: ${e.latlng.lng.toFixed(6)}<br>
-      Código: ${selectedPinCode || "N/A"}<br>
-      Estado: <b>PENDIENTE</b>
-    </div>
-  `);
+        <div style="text-align:center; margin-bottom:6px;">
+          <img src="${selectedIconUrl}" alt="pin" style="width:28px; height:28px; object-fit:contain;">
+        </div>
+        <div style="font-size:12px;">
+          Lat: ${latlng.lat.toFixed(6)}<br>
+          Lng: ${latlng.lng.toFixed(6)}<br>
+          Código: ${selectedPinCode || "N/A"}<br>
+          Estado: <b>PENDIENTE</b>
+        </div>
+      `);
 
       showStatus(`Pines pendientes por guardar: ${pendingPins.length}`);
+    }
+
+    map.on("click", function (e) {
+      addPin(e.latlng);
     });
 
     // ✅ Guardar en bloque
@@ -1188,7 +1209,12 @@
         // ✅ si todo OK, limpiamos pendientes
         const saved = data.saved || 0;
         pendingPins.length = 0;
+        pinCount = 0;
+        pinCountElement.textContent = pinCount;
 
+        // Limpiamos los marcadores pendientes del mapa (opcional, si quisieras que desaparezcan o cambien de color)
+        // Por ahora lo dejamos así, pero mostramos el modal de éxito
+        showSaveSuccess();
         showStatus(`✅ Pines guardados: ${saved}`);
       } catch (err) {
         console.error(err);
@@ -1298,7 +1324,52 @@
     const legendBody = document.getElementById('legendBody');
 
     // Mapeo detallado basado en la imagen del usuario
-    const LEGEND_DATA = [
+    // Mapeo detallado basado en la imagen del usuario
+
+    const LEGEND_DATA_VIOLENCIA = [
+      {
+        code: "VIP",
+        title: "Violencia psicológica",
+        desc: "Cualquier acto u omisión que dañe la estabilidad psicológica; el cual puede conllevar a la víctima a la depresión, al aislamiento, a la devaluación de su autoestima e incluso al suicidio."
+      },
+      {
+        code: "AEP",
+        title: "Acoso sexual en espacios públicos",
+        desc: "Acto que se manifiesta a través de una conducta física o verbal de connotación sexual no consentida ejercida sobre una o varias personas, en espacios y medios de transporte públicos, cuya accion representa una vulneración a los derechos humanos."
+      },
+      {
+        code: "VIO",
+        title: "Violación",
+        desc: "Acto de penetración sexual sin consentimiento, forzado o coaccionado. Es una grave violación de los derechos y la autonomía de la víctima."
+      },
+      {
+        code: "VFI",
+        title: "Violencia física",
+        desc: "Cualquier acción que cause daño de manera intencional utilizando fuerza física, armas o sustancias peligrosas; como ácidos, corrosivos, tóxicos e inflamables que puedan resultar en lesiones internas, externas o ambas."
+      },
+      {
+        code: "FEM",
+        title: "Feminicidio",
+        desc: "Asesinato de una mujer por razones de género, generalmente motivado por violencia machista y odio hacia las mujeres."
+      },
+      {
+        code: "VIN",
+        title: "Violencia institucional",
+        desc: "Actos u omisiones de servidores públicos que discriminan, utilizan estereotipos de género o impiden el ejercicio de los derechos de las mujeres y su acceso a políticas públicas para prevenir y erradicar la violencia."
+      },
+      {
+        code: "VPA",
+        title: "Violencia patrimonial",
+        desc: "Cualquier acción u omisión que pone en riesgo la supervivencia de la víctima, afectando sus bienes, documentos, derechos o recursos económicos."
+      },
+      {
+        code: "VCO",
+        title: "Violencia comunitaria",
+        desc: "Actos individuales o colectivos que transgreden derechos fundamentales de las mujeres y propician su denigración, discriminación, marginación o exclusión en el ámbito público."
+      }
+    ];
+
+    const LEGEND_DATA_MEJORAMIENTO = [
       {
         code: "STP",
         title: "Sin transporte público",
@@ -1346,18 +1417,27 @@
       }
     ];
 
-    function openLegend() {
-      // Poblar si está vacío
-      if (legendBody.children.length === 0) {
-        LEGEND_DATA.forEach(item => {
-          // Buscar icono correspondiente en ICONS_MEJORAMIENTO
-          const iconObj = ICONS_MEJORAMIENTO.find(i => i.name === item.code);
-          const imgSrc = iconObj ? iconObj.src : null;
+    function renderLegendSection(title, data, iconSource) {
+      if (!data || data.length === 0) return;
 
-          if (imgSrc) {
-            const row = document.createElement('div');
-            row.className = 'legend-item';
-            row.innerHTML = `
+      // Container wrapper for column
+      const sectionDiv = document.createElement('div');
+      sectionDiv.className = 'legend-section';
+
+      // Título de sección
+      const sectionTitle = document.createElement('h3');
+      sectionTitle.style.cssText = "margin: 0 0 16px 0; color: #1e3a8a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;";
+      sectionTitle.innerText = title;
+      sectionDiv.appendChild(sectionTitle);
+
+      data.forEach(item => {
+        const iconObj = iconSource.find(i => i.name === item.code);
+        const imgSrc = iconObj ? iconObj.src : null;
+
+        if (imgSrc) {
+          const row = document.createElement('div');
+          row.className = 'legend-item';
+          row.innerHTML = `
               <div class="legend-icon-container">
                 <img src="${imgSrc}" class="legend-icon-img" alt="${item.title}">
               </div>
@@ -1366,9 +1446,18 @@
                 <p>${item.desc}</p>
               </div>
             `;
-            legendBody.appendChild(row);
-          }
-        });
+          sectionDiv.appendChild(row);
+        }
+      });
+
+      legendBody.appendChild(sectionDiv);
+    }
+
+    function openLegend() {
+      // Poblar si está vacío
+      if (legendBody.children.length === 0) {
+        renderLegendSection("Violencia", LEGEND_DATA_VIOLENCIA, ICONS_VIOLENCIA);
+        renderLegendSection("Mejoramiento Urbano", LEGEND_DATA_MEJORAMIENTO, ICONS_MEJORAMIENTO);
       }
       overlay.classList.add('open');
     }
@@ -1384,7 +1473,88 @@
       if (e.target === overlay) closeLegend();
     });
   </script>
+  <!-- Modal Éxito Guardado -->
+  <div id="saveSuccessModal" class="legend-overlay">
+    <div class="legend-modal" style="max-width: 400px; text-align: center; padding: 30px;">
+      <div style="margin-bottom: 20px;">
+        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="12" fill="#d1fae5" />
+          <path d="M7 13L10 16L17 9" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+      <h2 style="color: #065f46; margin-bottom: 10px;">¡Guardado Exitoso!</h2>
+      <p style="color: #4b5563; margin-bottom: 25px; font-size: 1rem;">
+        Tus pines se han registrado correctamente en la base de datos.
+      </p>
+      <button id="btnCloseSuccess" class="btn-primary" style="width: 100%;">Entendido</button>
+    </div>
+  </div>
+
+  <script>
+    const saveSuccessModal = document.getElementById('saveSuccessModal');
+    const btnCloseSuccess = document.getElementById('btnCloseSuccess');
+
+    function showSaveSuccess() {
+      saveSuccessModal.classList.add('open');
+    }
+
+    function closeSaveSuccess() {
+      saveSuccessModal.classList.remove('open');
+    }
+
+    btnCloseSuccess?.addEventListener('click', closeSaveSuccess);
+    saveSuccessModal?.addEventListener('click', (e) => {
+      if (e.target === saveSuccessModal) closeSaveSuccess();
+    });
+  </script>
 </body>
 
+<!-- Modal Bienvenida / Folio (Si existe la variable folio) -->
+{% if folio %}
+<div id="welcomeFolioModal" class="legend-overlay open">
+  <div class="legend-modal" style="max-width: 450px; text-align: center; padding: 40px;">
+    <div style="margin-bottom: 20px;">
+      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="12" fill="#dbeafe" />
+        <path d="M12 16V12M12 8H12.01" stroke="#1e40af" stroke-width="3" stroke-linecap="round"
+          stroke-linejoin="round" />
+      </svg>
+    </div>
+    <h2 style="color: #1e3a8a; margin-bottom: 10px;">¡Gracias por participar!</h2>
+    <p style="color: #4b5563; margin-bottom: 10px; font-size: 1.1rem;">
+      Tu registro ha sido exitoso.
+    </p>
+    <div style="background:#f3f4f6; padding:15px; border-radius:12px; margin-bottom:25px;">
+      <span style="color:#64748b; font-size:0.9rem; font-weight:600; display:block; margin-bottom:5px;">TU FOLIO
+        ES:</span>
+      <span style="color:#1e3a8a; font-size:2rem; font-weight:900; letter-spacing:1px;">{{ folio }}</span>
+    </div>
+    <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 25px;">
+      Ahora puedes navegar por el mapa y agregar tus reportes.
+    </p>
+    <button id="btnCloseWelcome" class="btn-primary" style="width: 100%;">Comenzar</button>
+  </div>
+</div>
+<script>
+  const welcomeModal = document.getElementById('welcomeFolioModal');
+  const btnCloseWelcome = document.getElementById('btnCloseWelcome');
+
+  function closeWelcome() {
+    welcomeModal.classList.remove('open');
+    // Limpiar query param de la URL para que no salga al refrescar (opcional pero recomendable)
+    if (window.history.replaceState) {
+      const url = new URL(window.location);
+      url.searchParams.delete('folio');
+      window.history.replaceState({}, '', url);
+    }
+  }
+
+  btnCloseWelcome?.addEventListener('click', closeWelcome);
+  welcomeModal?.addEventListener('click', (e) => {
+    if (e.target === welcomeModal) closeWelcome();
+  });
+</script>
+{% endif %}
+</body>
 
 </html>
