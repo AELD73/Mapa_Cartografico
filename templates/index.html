@@ -957,28 +957,27 @@
   <script>
     const STATIC_IMG = "{{ url_for('static', filename='img/') }}";
 
-    // Define icon paths for the legend matching the new filenames
-    const ICONS_MEJORAMIENTO = [
-      { name: "STP", label: "Sin transporte público", src: "{{ url_for('static', filename='img/MEJORAMIENTO 1.png') }}" },
-      { name: "PEI", label: "Parabuses con estado inservible", src: "{{ url_for('static', filename='img/MEJORAMIENTO 2.png') }}" },
-      { name: "FTU", label: "Falta de transporte universitario", src: "{{ url_for('static', filename='img/MEJORAMIENTO 3.png') }}" },
-      { name: "AII", label: "Asentamientos irregulares e inundaciones", src: "{{ url_for('static', filename='img/MEJORAMIENTO 4.png') }}" },
-      { name: "FFD", label: "Falta de flora y deterioro de espacio público", src: "{{ url_for('static', filename='img/MEJORAMIENTO 5.png') }}" },
-      { name: "DCA", label: "Deterioro de calles por afluencia vehicular", src: "{{ url_for('static', filename='img/MEJORAMIENTO 6.png') }}" },
-      { name: "DPM", label: "Deterioro de patrimonio material", src: "{{ url_for('static', filename='img/MEJORAMIENTO 7.png') }}" },
-      { name: "CEH", label: "Casas con entorno hostil", src: "{{ url_for('static', filename='img/MEJORAMIENTO 8.png') }}" },
-      { name: "FAP", label: "Falta de alumbrado público", src: "{{ url_for('static', filename='img/MEJORAMIENTO 9.png') }}" }
+    const ICONS_VIOLENCIA = [
+      { name: "VIP", label: "Violencia psicológica", src: STATIC_IMG + "Sticker Violencia - 01.png" },
+      { name: "AEP", label: "Acoso sexual en espacios públicos", src: STATIC_IMG + "Sticker Violencia - 02.png" },
+      { name: "VIO", label: "Violación", src: STATIC_IMG + "Sticker Violencia - 03.png" },
+      { name: "VFI", label: "Violencia física", src: STATIC_IMG + "Sticker Violencia - 04.png" },
+      { name: "FEM", label: "Feminicidio", src: STATIC_IMG + "Sticker Violencia - 05.png" },
+      { name: "VIN", label: "Violencia institucional", src: STATIC_IMG + "Sticker Violencia - 06.png" },
+      { name: "VPA", label: "Violencia patrimonial", src: STATIC_IMG + "Sticker Violencia - 07.png" },
+      { name: "VCO", label: "Violencia comunitaria", src: STATIC_IMG + "Sticker Violencia - 08.png" },
     ];
 
-    const ICONS_VIOLENCIA = [
-      { name: "VIP", label: "Violencia psicológica", src: "{{ url_for('static', filename='img/VIOLENCIA 1.png') }}" },
-      { name: "AEP", label: "Acoso sexual en espacios públicos", src: "{{ url_for('static', filename='img/VIOLENCIA 2.png') }}" },
-      { name: "VIO", label: "Violación", src: "{{ url_for('static', filename='img/VIOLENCIA 3.png') }}" },
-      { name: "VFI", label: "Violencia física", src: "{{ url_for('static', filename='img/VIOLENCIA 4.png') }}" },
-      { name: "FEM", label: "Feminicidio", src: "{{ url_for('static', filename='img/VIOLENCIA 5.png') }}" },
-      { name: "VIN", label: "Violencia institucional", src: "{{ url_for('static', filename='img/VIOLENCIA 6.png') }}" },
-      { name: "VPA", label: "Violencia patrimonial", src: "{{ url_for('static', filename='img/VIOLENCIA 7.png') }}" },
-      { name: "VCO", label: "Violencia comunitaria", src: "{{ url_for('static', filename='img/VIOLENCIA 8.png') }}" }
+    const ICONS_MEJORAMIENTO = [
+      { name: "DEB", label: "Deterioro en banqueta", src: STATIC_IMG + "Stickers entorno urbano-01.png" },
+      { name: "EVP", label: "Estacionamiento en vía pública", src: STATIC_IMG + "Stickers entorno urbano-02.png" },
+      { name: "COV", label: "Congestión vehicular", src: STATIC_IMG + "Stickers entorno urbano-03.png" },
+      { name: "BAP", label: "Barrera peatonal", src: STATIC_IMG + "Stickers entorno urbano-04.png" },
+      { name: "CRI", label: "Cruce inseguro", src: STATIC_IMG + "Stickers entorno urbano-05.png" },
+      { name: "CAI", label: "Calle insegura", src: STATIC_IMG + "Stickers entorno urbano-06.png" },
+      { name: "CME", label: "Ciclovía en mal estado", src: STATIC_IMG + "Stickers entorno urbano-07.png" },
+      { name: "CSC", label: "Ciclovía sin conexión", src: STATIC_IMG + "Stickers entorno urbano-08.png" },
+      { name: "STP", label: "Calle en mal estado", src: STATIC_IMG + "Stickers entorno urbano-09.png" },
     ];
 
     [...ICONS_VIOLENCIA, ...ICONS_MEJORAMIENTO].forEach((i) => {
