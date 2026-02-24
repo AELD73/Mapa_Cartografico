@@ -131,8 +131,7 @@
           {% for layer in layers %}
           <tr>
             <td>
-              <span
-                style="display:inline-block; width:12px; height:12px; background:{{ layer.color }}; border-radius:50%; margin-right:8px;"></span>
+              <span class="layer-color-indicator" data-color="{{ layer.color }}"></span>
               {{ layer.name }}
             </td>
             <td>{{ layer.created_at[:10] }}</td>
@@ -175,6 +174,13 @@
       if (r.ok) alert("Guardado correctamente");
       else alert("Error guardando configuración");
     }
+
+    // Aplicar colores a los indicadores de capa
+    document.querySelectorAll('.layer-color-indicator').forEach(el => {
+      if (el.dataset.color) {
+        el.style.backgroundColor = el.dataset.color;
+      }
+    });
   </script>
 </body>
 

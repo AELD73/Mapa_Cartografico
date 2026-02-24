@@ -97,6 +97,16 @@ input[type="file"]::file-selector-button {
     box-sizing: border-box;
 }
 
+.layer-color-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    vertical-align: middle;
+}
+
 input:focus,
 select:focus {
     outline: none;
