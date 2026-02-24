@@ -912,53 +912,7 @@
 
         <!-- ✅ SOLO ESTO SCROLLEA -->
         <div class="sidebar-scroll">
-          <!-- Iconos de Mejoramiento Urbano (9 tipos) -->
-          <div class="icon-section">
-            <span>MEJORAMIENTO URBANO</span>
-            <div class="icon-grid">
-              <img src="{{ url_for('static', filename='img/MEJORAMIENTO 1.png') }}" class="pin-icon" data-code="STP"
-                alt="STP" title="Sin transporte público">
-              <img src="{{ url_for('static', filename='img/MEJORAMIENTO 2.png') }}" class="pin-icon" data-code="PEI"
-                alt="PEI" title="Parabuses con estado inservible">
-              <img src="{{ url_for('static', filename='img/MEJORAMIENTO 3.png') }}" class="pin-icon" data-code="FTU"
-                alt="FTU" title="Falta de transporte universitario">
-              <img src="{{ url_for('static', filename='img/MEJORAMIENTO 4.png') }}" class="pin-icon" data-code="AII"
-                alt="AII" title="Asentamientos irregulares e inundaciones">
-              <img src="{{ url_for('static', filename='img/MEJORAMIENTO 5.png') }}" class="pin-icon" data-code="FFD"
-                alt="FFD" title="Falta de flora y deterioro de espacio público">
-              <img src="{{ url_for('static', filename='img/MEJORAMIENTO 6.png') }}" class="pin-icon" data-code="DCA"
-                alt="DCA" title="Deterioro de calles por afluencia vehicular">
-              <img src="{{ url_for('static', filename='img/MEJORAMIENTO 7.png') }}" class="pin-icon" data-code="DPM"
-                alt="DPM" title="Deterioro de patrimonio material">
-              <img src="{{ url_for('static', filename='img/MEJORAMIENTO 8.png') }}" class="pin-icon" data-code="CEH"
-                alt="CEH" title="Casas con entorno hostil">
-              <img src="{{ url_for('static', filename='img/MEJORAMIENTO 9.png') }}" class="pin-icon" data-code="FAP"
-                alt="FAP" title="Falta de alumbrado público">
-            </div>
-          </div>
-
-          <!-- Iconos de Violencia (8 tipos) -->
-          <div class="icon-section">
-            <span>VIOLENCIA</span>
-            <div class="icon-grid">
-              <img src="{{ url_for('static', filename='img/VIOLENCIA 1.png') }}" class="pin-icon" data-code="VIP"
-                alt="VIP" title="Violencia Psicológica">
-              <img src="{{ url_for('static', filename='img/VIOLENCIA 2.png') }}" class="pin-icon" data-code="AEP"
-                alt="AEP" title="Acoso sexual en espacios públicos">
-              <img src="{{ url_for('static', filename='img/VIOLENCIA 3.png') }}" class="pin-icon" data-code="VIO"
-                alt="VIO" title="Violación">
-              <img src="{{ url_for('static', filename='img/VIOLENCIA 4.png') }}" class="pin-icon" data-code="VFI"
-                alt="VFI" title="Violencia Física">
-              <img src="{{ url_for('static', filename='img/VIOLENCIA 5.png') }}" class="pin-icon" data-code="FEM"
-                alt="FEM" title="Feminicidio">
-              <img src="{{ url_for('static', filename='img/VIOLENCIA 6.png') }}" class="pin-icon" data-code="VIN"
-                alt="VIN" title="Violencia Institucional">
-              <img src="{{ url_for('static', filename='img/VIOLENCIA 7.png') }}" class="pin-icon" data-code="VPA"
-                alt="VPA" title="Violencia Patrimonial">
-              <img src="{{ url_for('static', filename='img/VIOLENCIA 8.png') }}" class="pin-icon" data-code="VCO"
-                alt="VCO" title="Violencia Comunitaria">
-            </div>
-          </div>
+          <div id="iconGroups" class="icon-groups"></div>
 
           <div class="instructions">
             <h3>📋 Instrucciones</h3>
@@ -1005,26 +959,26 @@
 
     // Define icon paths for the legend matching the new filenames
     const ICONS_MEJORAMIENTO = [
-      { name: "STP", src: "{{ url_for('static', filename='img/MEJORAMIENTO 1.png') }}" },
-      { name: "PEI", src: "{{ url_for('static', filename='img/MEJORAMIENTO 2.png') }}" },
-      { name: "FTU", src: "{{ url_for('static', filename='img/MEJORAMIENTO 3.png') }}" },
-      { name: "AII", src: "{{ url_for('static', filename='img/MEJORAMIENTO 4.png') }}" },
-      { name: "FFD", src: "{{ url_for('static', filename='img/MEJORAMIENTO 5.png') }}" },
-      { name: "DCA", src: "{{ url_for('static', filename='img/MEJORAMIENTO 6.png') }}" },
-      { name: "DPM", src: "{{ url_for('static', filename='img/MEJORAMIENTO 7.png') }}" },
-      { name: "CEH", src: "{{ url_for('static', filename='img/MEJORAMIENTO 8.png') }}" },
-      { name: "FAP", src: "{{ url_for('static', filename='img/MEJORAMIENTO 9.png') }}" }
+      { name: "STP", label: "Sin transporte público", src: "{{ url_for('static', filename='img/MEJORAMIENTO 1.png') }}" },
+      { name: "PEI", label: "Parabuses con estado inservible", src: "{{ url_for('static', filename='img/MEJORAMIENTO 2.png') }}" },
+      { name: "FTU", label: "Falta de transporte universitario", src: "{{ url_for('static', filename='img/MEJORAMIENTO 3.png') }}" },
+      { name: "AII", label: "Asentamientos irregulares e inundaciones", src: "{{ url_for('static', filename='img/MEJORAMIENTO 4.png') }}" },
+      { name: "FFD", label: "Falta de flora y deterioro de espacio público", src: "{{ url_for('static', filename='img/MEJORAMIENTO 5.png') }}" },
+      { name: "DCA", label: "Deterioro de calles por afluencia vehicular", src: "{{ url_for('static', filename='img/MEJORAMIENTO 6.png') }}" },
+      { name: "DPM", label: "Deterioro de patrimonio material", src: "{{ url_for('static', filename='img/MEJORAMIENTO 7.png') }}" },
+      { name: "CEH", label: "Casas con entorno hostil", src: "{{ url_for('static', filename='img/MEJORAMIENTO 8.png') }}" },
+      { name: "FAP", label: "Falta de alumbrado público", src: "{{ url_for('static', filename='img/MEJORAMIENTO 9.png') }}" }
     ];
 
     const ICONS_VIOLENCIA = [
-      { name: "VIP", src: "{{ url_for('static', filename='img/VIOLENCIA 1.png') }}" },
-      { name: "AEP", src: "{{ url_for('static', filename='img/VIOLENCIA 2.png') }}" },
-      { name: "VIO", src: "{{ url_for('static', filename='img/VIOLENCIA 3.png') }}" },
-      { name: "VFI", src: "{{ url_for('static', filename='img/VIOLENCIA 4.png') }}" },
-      { name: "FEM", src: "{{ url_for('static', filename='img/VIOLENCIA 5.png') }}" },
-      { name: "VIN", src: "{{ url_for('static', filename='img/VIOLENCIA 6.png') }}" },
-      { name: "VPA", src: "{{ url_for('static', filename='img/VIOLENCIA 7.png') }}" },
-      { name: "VCO", src: "{{ url_for('static', filename='img/VIOLENCIA 8.png') }}" }
+      { name: "VIP", label: "Violencia psicológica", src: "{{ url_for('static', filename='img/VIOLENCIA 1.png') }}" },
+      { name: "AEP", label: "Acoso sexual en espacios públicos", src: "{{ url_for('static', filename='img/VIOLENCIA 2.png') }}" },
+      { name: "VIO", label: "Violación", src: "{{ url_for('static', filename='img/VIOLENCIA 3.png') }}" },
+      { name: "VFI", label: "Violencia física", src: "{{ url_for('static', filename='img/VIOLENCIA 4.png') }}" },
+      { name: "FEM", label: "Feminicidio", src: "{{ url_for('static', filename='img/VIOLENCIA 5.png') }}" },
+      { name: "VIN", label: "Violencia institucional", src: "{{ url_for('static', filename='img/VIOLENCIA 6.png') }}" },
+      { name: "VPA", label: "Violencia patrimonial", src: "{{ url_for('static', filename='img/VIOLENCIA 7.png') }}" },
+      { name: "VCO", label: "Violencia comunitaria", src: "{{ url_for('static', filename='img/VIOLENCIA 8.png') }}" }
     ];
 
     [...ICONS_VIOLENCIA, ...ICONS_MEJORAMIENTO].forEach((i) => {
