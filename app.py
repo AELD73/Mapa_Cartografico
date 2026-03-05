@@ -71,6 +71,7 @@ def init_db():
             lon REAL NOT NULL,
             nom TEXT,
             idu TEXT,
+            dentro_malla INTEGER,
             creado_en TEXT NOT NULL,
             FOREIGN KEY(visita_id) REFERENCES visitas(id)
         )
@@ -320,12 +321,15 @@ def add_pin():
     visita_id = session.get("visita_id")
     if not visita_id:
         return jsonify({"error": "No hay visita activa en la sesión."}), 400
+    
+    dentro = point_in_polygon(float(lat), float(lon), polygon_coords)
+    dentro_val = 1 if dentro else 0
 
     db = get_db()
     db.execute(
         """
-        INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, creado_en)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, dentro_malla, creado_en)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             int(visita_id),
@@ -334,6 +338,7 @@ def add_pin():
             float(lon),
             nom or None,
             idu or None,
+            dentro_val,
             datetime.now().isoformat(timespec="seconds"),
         ),
     )
@@ -650,7 +655,8 @@ def add_pins_bulk():
                 return jsonify({"error": f"Pin #{i}: faltan coordenadas lon/lat"}), 400
             if not codigo_pin:
                 return jsonify({"error": f"Pin #{i}: falta codigo_pin"}), 400
-
+            dentro = point_in_polygon(float(lat), float(lon), polygon_coords)
+            dentro_val = 1 if dentro else 0
             rows_to_insert.append((
                 int(visita_id),
                 codigo_pin,
@@ -658,6 +664,7 @@ def add_pins_bulk():
                 float(lon),
                 nom or None,
                 idu or None,
+                dentro_val,
                 datetime.now().isoformat(timespec="seconds"),
             ))
         except Exception:
@@ -666,8 +673,8 @@ def add_pins_bulk():
     db = get_db()
     db.executemany(
         """
-        INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, creado_en)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, dentro_malla ,creado_en)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
         rows_to_insert
     )
@@ -883,7 +890,43 @@ def download_db():
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+#Implementación de identificador para la malla
 
+#Ruta de donde se va agarrar los limites de la BD
+POLYGON_PATH = os.path.join(BASE_DIR, "static", "layers", "Entorno_Urbano_UAM_A.json")
+
+with open(POLYGON_PATH) as f:
+    polygon_data = json.load(f)
+
+polygon_coords = polygon_data["features"][0]["geometry"]["coordinates"][0]
+
+
+# función para la identificación
+
+def point_in_polygon(lat, lon, polygon):
+    x = lon
+    y = lat
+    inside = False
+
+    n = len(polygon)
+    p1x, p1y = polygon[0]
+
+    for i in range(n + 1):
+        p2x, p2y = polygon[i % n]
+
+        if y > min(p1y, p2y):
+            if y <= max(p1y, p2y):
+                if x <= max(p1x, p2x):
+
+                    if p1y != p2y:
+                        xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+
+                    if p1x == p2x or x <= xinters:
+                        inside = not inside
+
+        p1x, p1y = p2x, p2y
+
+    return inside
 # -----------------------
 # Main
 # -----------------------
