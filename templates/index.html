@@ -103,7 +103,7 @@
     }
 
     .sidebar .header h1 {
-      color: #1e40af;
+      color: #002d3d;
       font-size: clamp(1.05rem, 0.9rem + 0.6vw, 1.5rem);
       font-weight: 900;
       margin: 0 0 6px 0;
@@ -138,7 +138,7 @@
     .icon-group-title {
       font-size: clamp(0.9rem, 0.82rem + 0.2vw, 1rem);
       font-weight: 900;
-      color: #1e3a8a;
+      color: #002d3d;
       margin: 0 0 10px 0;
       display: flex;
       align-items: center;
@@ -149,7 +149,7 @@
       width: 8px;
       height: 8px;
       border-radius: 9999px;
-      background: #3b82f6;
+      background: #002d3d;
     }
 
     /* Grid de iconos: se adapta automáticamente */
@@ -176,13 +176,13 @@
 
     .icon-item:hover {
       transform: translateY(-2px);
-      border-color: #3b82f6;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.18);
+      border-color: #002d3d;
+      box-shadow: 0 4px 12px rgba(0, 45, 61, 0.18);
     }
 
     .icon-item.selected {
-      background: #3b82f6;
-      border-color: #3b82f6;
+      background: #002d3d;
+      border-color: #002d3d;
     }
 
     .icon-thumb {
@@ -194,16 +194,16 @@
     }
 
     .instructions {
-      background: #eff6ff;
+      background: #e6f0f3;
       border-radius: 12px;
       padding: clamp(10px, 1.1vw, 14px);
       font-size: clamp(0.85rem, 0.8rem + 0.25vw, 0.98rem);
-      color: #1e3a8a;
+      color: #002d3d;
     }
 
     .instructions h3 {
       margin: 0 0 8px 0;
-      color: #1e3a8a;
+      color: #002d3d;
       font-weight: 900;
     }
 
@@ -235,7 +235,7 @@
     }
 
     .btn-primary {
-      background: #1d4ed8;
+      background: #002d3d;
       color: #fff;
     }
 
@@ -277,12 +277,13 @@
 
     .status-bar span {
       font-weight: 800;
-      color: #1e40af;
+      color: #002d3d;
     }
 
     .pin-count {
-      background: #3b82f6;
-      color: #fff;
+      background: #fff;
+      color: #002d3d;
+      border: 1px solid #002d3d;
       padding: 4px 12px;
       border-radius: 9999px;
       font-size: 0.9rem;
@@ -437,6 +438,53 @@
       .sidebar {
         gap: 10px;
       }
+    }
+
+    /* Floating Map Controls */
+    .map-controls {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .map-btn {
+      background: white;
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      transition: all 0.2s;
+      color: #002d3d;
+    }
+
+    .map-btn img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
+
+    .map-btn:hover {
+      background: #f1f5f9;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    }
+
+    .map-btn:active {
+      transform: translateY(0);
+    }
+
+    .map-btn.btn-undo {
+      color: #ef4444;
     }
 
     /* ==========================
@@ -917,12 +965,13 @@
           <div class="instructions">
             <h3>📋 Instrucciones</h3>
             <ul>
-              <li>Selecciona un ícono de alguna sección</li>
-              <li>Haz clic en cualquier lugar del mapa</li>
-              <li>El ícono aparecerá como un pin</li>
-              <li>Puedes colocar múltiples pins</li>
-              <li>Cuando termines, haz clic en "Guardar"</li>
-              <li>Para salir, haz clic en "Regresar"</li>
+              <li>Selecciona la problemática en la sección correspondiente</li>
+              <li>Ubícala haciendo clic en el mapa</li>
+              <li>Se generará un marcador con el ícono seleccionado</li>
+              <li>Puedes señalar múltiples problemáticas</li>
+              <li>Al finalizar, haz clic en "Guardar" para registrar tu reporte</li>
+              <li>Para salir o finalizar, haz clic en "Salir"</li>
+              <li>Para volver al formulario, haz clic en "Regresar"</li>
             </ul>
           </div>
         </div>
@@ -931,10 +980,13 @@
         <div class="sidebar-footer">
           <div class="action-buttons">
             <button type="button" id="btnGuardar" class="btn-primary">
-              💾 Guardar
+              Guardar
             </button>
             <button type="button" id="btnRegresar" class="btn-secondary">
-              ↩ Regresar
+              Regresar
+            </button>
+            <button type="button" id="btnTerminar" class="btn-secondary" style="background:#dc2626; color:#fff;">
+              Salir
             </button>
           </div>
 
@@ -945,7 +997,14 @@
         </div>
       </div>
 
-      <div id="map-container">
+      <div id="map-container" style="position: relative;">
+        <!-- Botones flotantes del mapa -->
+        <div class="map-controls">
+          <button type="button" id="btnHome" class="map-btn" title="Ir al inicio">
+            <img src="{{ url_for('static', filename='img/Uam_azc.webp') }}" alt="UAM">
+          </button>
+          <button type="button" id="btnUndo" class="map-btn btn-undo" title="Deshacer último marcador">⤺</button>
+        </div>
         <div id="map"></div>
       </div>
     </div>
@@ -1124,6 +1183,9 @@
     }
     loadLayers();
 
+    // Lista de marcadores físicos en el mapa para poder borrarlos (Deshacer)
+    const pendingMarkers = [];
+
     // ✅ Pines pendientes (NO guardados aún en BD)
     const pendingPins = [];
 
@@ -1150,6 +1212,7 @@
 
       // ✅ se muestra el pin en el mapa (visual), pero NO se guarda aún en BD
       const marker = L.marker(latlng, { icon: imgIcon }).addTo(map);
+      pendingMarkers.push(marker);
 
       // ✅ guardamos en memoria (pendiente)
       pendingPins.push({
@@ -1177,6 +1240,32 @@
 
       showStatus(`Pines pendientes por guardar: ${pendingPins.length}`);
     }
+
+    // Funcionalidad Deshacer
+    function undoLastPin() {
+      if (pendingPins.length === 0) return;
+
+      // Quitar del mapa
+      const lastMarker = pendingMarkers.pop();
+      if (lastMarker) map.removeLayer(lastMarker);
+
+      // Quitar de los datos pendientes
+      pendingPins.pop();
+
+      // Actualizar contador
+      pinCount = pendingPins.length;
+      pinCountElement.textContent = pinCount;
+
+      showStatus(pinCount > 0 ? `Pines pendientes por guardar: ${pinCount}` : "No hay pines pendientes.");
+    }
+
+    // Funcionalidad Home
+    function resetMapView() {
+      map.setView(UAM_AZCAPOTZALCO, 16, { animate: true });
+    }
+
+    document.getElementById("btnHome")?.addEventListener("click", resetMapView);
+    document.getElementById("btnUndo")?.addEventListener("click", undoLastPin);
 
     map.on("click", function (e) {
       addPin(e.latlng);
@@ -1209,6 +1298,7 @@
         // ✅ si todo OK, limpiamos pendientes
         const saved = data.saved || 0;
         pendingPins.length = 0;
+        pendingMarkers.length = 0; // Limpiar también la lista de marcadores físicos
         pinCount = 0;
         pinCountElement.textContent = pinCount;
 
@@ -1224,11 +1314,16 @@
       }
     });
 
-    // ✅ Regresar a otra página (cambia la URL a la que tú quieras)
+    const btnTerminar = document.getElementById("btnTerminar");
+
+    // ✅ Regresar al login (panel del usuario)
     btnRegresar?.addEventListener("click", () => {
-      // ejemplo: regresar a home externa o interna
-      window.location.href =
-        "http://192.168.1.105:8080/index.html";
+      window.location.href = "/login";
+    });
+
+    // ✅ Terminar (IP externa)
+    btnTerminar?.addEventListener("click", () => {
+      window.location.href = "/logout";
     });
   </script>
 
@@ -1513,20 +1608,25 @@
 {% if folio %}
 <div id="welcomeFolioModal" class="legend-overlay open">
   <div class="legend-modal" style="max-width: 450px; text-align: center; padding: 40px;">
-    <div style="margin-bottom: 20px;">
-      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="12" cy="12" r="12" fill="#dbeafe" />
-        <path d="M12 16V12M12 8H12.01" stroke="#1e40af" stroke-width="3" stroke-linecap="round"
+    <div style="margin-bottom: 25px;">
+      <svg width="100" height="100" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Folded Map -->
+        <path d="M4 12L20 4L44 12L60 4V52L44 60L20 52L4 60V12Z" stroke="#1e3a8a" stroke-width="2.5"
           stroke-linejoin="round" />
+        <path d="M20 4V52M44 12V60" stroke="#1e3a8a" stroke-width="2.5" />
+        <!-- Pin Shadow -->
+        <ellipse cx="32" cy="46" rx="6" ry="3" fill="#1e3a8a" opacity="0.1" />
+        <!-- Pin -->
+        <path d="M32 42C32 42 22 32 22 22C22 16.4772 26.4772 12 32 12C37.5228 12 42 16.4772 42 22C42 32 32 42 32 42Z"
+          fill="#1e3a8a" />
+        <circle cx="32" cy="22" r="4" fill="white" />
       </svg>
     </div>
-    <h2 style="color: #1e3a8a; margin-bottom: 10px;">¡Gracias por participar!</h2>
-    <p style="color: #4b5563; margin-bottom: 10px; font-size: 1.1rem;">
-      Tu registro ha sido exitoso.
-    </p>
+    <h2 style="color: #1e3a8a; margin-bottom: 20px;">¡Bienvenido!</h2>
+    <!-- Registro exitoso removed -->
     <div style="background:#f3f4f6; padding:15px; border-radius:12px; margin-bottom:25px;">
-      <span style="color:#64748b; font-size:0.9rem; font-weight:600; display:block; margin-bottom:5px;">TU FOLIO
-        ES:</span>
+      <span style="color:#64748b; font-size:0.9rem; font-weight:600; display:block; margin-bottom:5px;">Tu folio
+        es:</span>
       <span style="color:#1e3a8a; font-size:2rem; font-weight:900; letter-spacing:1px;">{{ folio }}</span>
     </div>
     <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 25px;">

@@ -617,11 +617,10 @@ def login():
     return redirect(url_for("index", folio=visita_id))
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["GET", "POST"])
 def logout():
     session.clear()
-    flash("Sesión cerrada.", "ok")
-    return redirect("https://desarrollophp2.azc.uam.mx/labestudiosurbanos/index.html")
+    return redirect("http://192.168.1.105:8080/index.html")
 
 
 
@@ -893,5 +892,4 @@ if __name__ == "__main__":
     with app.app_context():
         init_db()
 
-    app.run(host="0.0.0.0", port=8888, debug=True)
-
+    app.run(host="0.0.0.0", port=8889, debug=True)
