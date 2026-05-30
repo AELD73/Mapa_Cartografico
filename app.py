@@ -11,6 +11,41 @@ from flask import (
     redirect, url_for, session, flash
 )
 from werkzeug.security import generate_password_hash, check_password_hash
+import hashlib
+import hmac
+import werkzeug.security
+
+# Interceptor para corregir el error de memoria (ValueError: unsupported hash type scrypt)
+_original_check_password_hash = werkzeug.security.check_password_hash
+
+def _safe_check_password_hash(pwhash, password):
+    if pwhash and pwhash.startswith("scrypt:"):
+        try:
+            # Estructura del hash scrypt de Werkzeug: scrypt:n:r:p$salt$hash
+            parts = pwhash.split("$")
+            if len(parts) == 3:
+                params, salt, hash_val = parts
+                param_parts = params.split(":")
+                if len(param_parts) == 4 and param_parts[0] == "scrypt":
+                    n = int(param_parts[1])
+                    r = int(param_parts[2])
+                    p = int(param_parts[3])
+                    # Calculamos el hash usando un maxmem de 1GB
+                    dk = hashlib.scrypt(
+                        password.encode("utf-8"),
+                        salt=salt.encode("utf-8"),
+                        n=n,
+                        r=r,
+                        p=p,
+                        maxmem=1024 * 1024 * 1024
+                    )
+                    return hmac.compare_digest(dk.hex(), hash_val)
+        except Exception:
+            pass
+    return _original_check_password_hash(pwhash, password)
+
+werkzeug.security.check_password_hash = _safe_check_password_hash
+check_password_hash = _safe_check_password_hash
 from werkzeug.utils import secure_filename
 import zipfile
 import shapefile
@@ -493,7 +528,7 @@ def admin_create():
     if not username or not password:
         flash("Usuario y contraseña son obligatorios.", "error")
         return redirect(url_for("admin_panel"))
-    pw_hash = generate_password_hash(password)
+    pw_hash = generate_password_hash(password, method="pbkdf2:sha256")
     db = get_db()
     try:
         db.execute(
@@ -562,7 +597,7 @@ def admin_register():
             flash("Usuario y contraseña son obligatorios.", "error")
             return render_template("registro_admin.html")
 
-        pw_hash = generate_password_hash(password)
+        pw_hash = generate_password_hash(password, method="pbkdf2:sha256")
         try:
             db.execute(
                 "INSERT INTO users (username, password_hash, role) VALUES (?,?,?)",
