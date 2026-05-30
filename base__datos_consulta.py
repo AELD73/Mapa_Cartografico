@@ -8,15 +8,21 @@ cursor = conn.cursor()
 cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
 tablas = cursor.fetchall()
 
-print("Tablas en la base de datos:\n")
+output = "Tablas en la base de datos:\n"
 
 for (tabla,) in tablas:
-    print(f"\n===== TABLA: {tabla} =====")
+    output += f"\n===== TABLA: {tabla} =====\n"
 
     cursor.execute(f"SELECT * FROM {tabla}")
     filas = cursor.fetchall()
 
     for fila in filas:
-        print(fila)
+        output += str(fila) + "\n"
 
 conn.close()
+
+# Guardar en archivo .txt
+with open("pines_export.txt", "w", encoding="utf-8") as archivo:
+    archivo.write(output)
+
+print("Exportación completada: pines_export.txt")
