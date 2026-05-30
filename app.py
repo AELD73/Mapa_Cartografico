@@ -625,7 +625,7 @@ def login():
 @app.route("/logout", methods=["GET", "POST"])
 def logout():
     session.clear()
-    return redirect("http://192.168.1.105:8080/index.html")
+    return redirect("https://labestudiosurbanos.azc.uam.mx/")
 
 
 
