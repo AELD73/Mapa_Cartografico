@@ -57,6 +57,35 @@ DB_PATH = os.path.join(BASE_DIR, "pines.db")
 LAYERS_DIR = os.path.join(BASE_DIR, "static", "layers")
 os.makedirs(LAYERS_DIR, exist_ok=True)
 
+import logging
+from logging.handlers import RotatingFileHandler
+
+# Configurar carpeta de logs
+LOGS_DIR = os.path.join(BASE_DIR, "logs")
+os.makedirs(LOGS_DIR, exist_ok=True)
+
+# Helper para configurar loggers rotativos
+def setup_logger(name, filename, level=logging.INFO):
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler = RotatingFileHandler(
+        os.path.join(LOGS_DIR, filename),
+        maxBytes=10 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8"
+    )
+    handler.setFormatter(formatter)
+    
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    if not logger.handlers:
+        logger.addHandler(handler)
+    return logger
+
+# Inicializar los loggers específicos
+login_logger = setup_logger("login", "inicio_sesion.log")
+pines_logger = setup_logger("pines", "pines.log")
+usuarios_logger = setup_logger("usuarios", "usuarios.log")
+
 app = Flask(__name__)
 # Llave secreta para manejo de sesiones (cookies)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "cambia_esta_llave_supersecreta")
@@ -361,25 +390,37 @@ def add_pin():
     dentro_val = 1 if dentro else 0
 
     db = get_db()
-    db.execute(
-        """
-        INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, dentro_malla, creado_en)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            int(visita_id),
-            codigo_pin,
-            float(lat),
-            float(lon),
-            nom or None,
-            idu or None,
-            dentro_val,
-            datetime.now().isoformat(timespec="seconds"),
-        ),
-    )
-    db.commit()
-    new_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
-    return jsonify({"ok": True, "id": new_id}), 201
+    try:
+        db.execute(
+            """
+            INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, dentro_malla, creado_en)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(visita_id),
+                codigo_pin,
+                float(lat),
+                float(lon),
+                nom or None,
+                idu or None,
+                dentro_val,
+                datetime.now().isoformat(timespec="seconds"),
+            ),
+        )
+        db.commit()
+        new_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+        pines_logger.info(
+            f"Pin agregado con éxito. ID: {new_id}, Folio (visita_id): {visita_id}, Código: '{codigo_pin}', "
+            f"Lat: {lat}, Lon: {lon}, Nom: '{nom}', Idu: '{idu}', Dentro Malla: {dentro_val}."
+        )
+        return jsonify({"ok": True, "id": new_id}), 201
+    except Exception as e:
+        pines_logger.error(
+            f"Error al guardar pin para Folio (visita_id) {visita_id}. "
+            f"Datos recibidos: Código: '{codigo_pin}', Lat: {lat}, Lon: {lon}. Error: {str(e)}",
+            exc_info=True
+        )
+        return jsonify({"error": "Error interno al guardar el pin."}), 500
 
 
 # -----------------------
@@ -536,9 +577,14 @@ def admin_create():
             (username, pw_hash, "admin"),
         )
         db.commit()
+        usuarios_logger.info(f"Usuario administrador creado exitosamente desde panel: '{username}'")
         flash("Administrador creado.", "ok")
-    except sqlite3.IntegrityError:
+    except sqlite3.IntegrityError as e:
+        usuarios_logger.error(f"Error al crear administrador '{username}' desde panel (el usuario ya existe): {str(e)}")
         flash("Ese usuario ya existe.", "error")
+    except Exception as e:
+        usuarios_logger.error(f"Error inesperado al crear administrador '{username}' desde panel: {str(e)}", exc_info=True)
+        flash("Error interno al crear el administrador.", "error")
     return redirect(url_for("admin_panel"))
 
 
@@ -604,10 +650,15 @@ def admin_register():
                 (username, pw_hash, "admin"),
             )
             db.commit()
+            usuarios_logger.info(f"Usuario administrador creado exitosamente desde registro: '{username}'")
             flash("Administrador creado. Ya puedes iniciar sesión.", "ok")
             return redirect(url_for("login"))
-        except sqlite3.IntegrityError:
+        except sqlite3.IntegrityError as e:
+            usuarios_logger.error(f"Error al registrar administrador '{username}' desde registro (el usuario ya existe): {str(e)}")
             flash("Ese usuario ya existe.", "error")
+        except Exception as e:
+            usuarios_logger.error(f"Error inesperado al registrar administrador '{username}' desde registro: {str(e)}", exc_info=True)
+            flash("Error interno al registrar el administrador.", "error")
 
     return render_template("registro_admin.html")
 
@@ -638,21 +689,49 @@ def login():
         return render_template("login.html")
 
     db = get_db()
-    cursor = db.cursor()
-    cursor.execute(
-        """
-        INSERT INTO visitas (edad, origen, destino, creado_en)
-        VALUES (?, ?, ?, ?)
-        """,
-        (edad, origen, destino, datetime.now().isoformat(timespec="seconds")),
-    )
-    db.commit()
+    try:
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            INSERT INTO visitas (edad, origen, destino, creado_en)
+            VALUES (?, ?, ?, ?)
+            """,
+            (edad, origen, destino, datetime.now().isoformat(timespec="seconds")),
+        )
+        db.commit()
 
-    visita_id = cursor.lastrowid
-    session["visita_id"] = visita_id
-    session.permanent = True
-    session["last_activity"] = datetime.utcnow().isoformat()
+        visita_id = cursor.lastrowid
+        session["visita_id"] = visita_id
+        session.permanent = True
+        session["last_activity"] = datetime.utcnow().isoformat()
 
+        # Validación de duplicidad (conflicto)
+        duplicate_check = db.execute(
+            """
+            SELECT id FROM visitas 
+            WHERE edad = ? AND origen = ? AND destino = ? AND id != ?
+            ORDER BY creado_en DESC LIMIT 1
+            """,
+            (edad, origen, destino, visita_id)
+        ).fetchone()
+
+        if duplicate_check:
+            login_logger.warning(
+                f"Conflicto de duplicidad detectado: El nuevo folio {visita_id} tiene los mismos datos "
+                f"(Edad: {edad}, Origen: '{origen}', Destino: '{destino}') que el folio existente {duplicate_check['id']}."
+            )
+        else:
+            login_logger.info(
+                f"Inicio de sesión exitoso. Folio asignado: {visita_id} (Edad: {edad}, Origen: '{origen}', Destino: '{destino}')."
+            )
+
+    except Exception as e:
+        login_logger.error(
+            f"Error al iniciar sesión / registrar visita (Edad: {edad_raw}, Origen: '{origen}', Destino: '{destino}'). Error: {str(e)}",
+            exc_info=True
+        )
+        flash("Error interno al procesar el inicio de sesión.", "error")
+        return render_template("login.html")
 
     return redirect(url_for("index", folio=visita_id))
 
@@ -706,16 +785,27 @@ def add_pins_bulk():
             return jsonify({"error": f"Pin #{i}: datos inválidos"}), 400
 
     db = get_db()
-    db.executemany(
-        """
-        INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, dentro_malla ,creado_en)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        rows_to_insert
-    )
-    db.commit()
+    try:
+        db.executemany(
+            """
+            INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, dentro_malla ,creado_en)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            rows_to_insert
+        )
+        db.commit()
 
-    return jsonify({"ok": True, "saved": len(rows_to_insert)}), 201
+        pines_logger.info(
+            f"Pines masivos agregados con éxito para Folio (visita_id) {visita_id}. "
+            f"Cantidad de pines guardados: {len(rows_to_insert)}."
+        )
+        return jsonify({"ok": True, "saved": len(rows_to_insert)}), 201
+    except Exception as e:
+        pines_logger.error(
+            f"Error al guardar pines masivos para Folio (visita_id) {visita_id}. Error: {str(e)}",
+            exc_info=True
+        )
+        return jsonify({"error": "Error interno al guardar los pines masivos."}), 500
 
 # -----------------------
 # Gestión de capas (Archivos Shapefile)
