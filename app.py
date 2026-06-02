@@ -716,9 +716,9 @@ def login():
         ).fetchone()
 
         if duplicate_check:
-            login_logger.warning(
-                f"Conflicto de duplicidad detectado: El nuevo folio {visita_id} tiene los mismos datos "
-                f"(Edad: {edad}, Origen: '{origen}', Destino: '{destino}') que el folio existente {duplicate_check['id']}."
+            login_logger.info(
+                f"Inicio de sesión exitoso. Folio asignado: {visita_id} (Edad: {edad}, Origen: '{origen}', Destino: '{destino}'). "
+                f"Nota: Se detectó coincidencia de datos con el folio previo {duplicate_check['id']} (mismo perfil de participante)."
             )
         else:
             login_logger.info(
