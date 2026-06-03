@@ -640,6 +640,9 @@
       }
 
       .sidebar-scroll {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
         flex: 1;
         overflow-y: auto;
         min-height: 0;
@@ -647,14 +650,21 @@
       }
 
       .icon-groups {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
         overflow: visible;
         height: auto;
         min-height: 0;
       }
 
       .icon-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
         padding: 8px;
         margin-bottom: 8px;
+        height: auto;
       }
 
       .icon-group-title {
@@ -663,8 +673,10 @@
       }
 
       .icon-grid {
+        display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 6px;
+        height: auto;
       }
 
       .icon-item {
