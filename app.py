@@ -213,29 +213,6 @@ def init_db():
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
 
-    cursor.executemany("""
-        INSERT IGNORE INTO catalogo_pines (codigo, nombre, categoria)
-        VALUES (%s, %s, %s)
-    """, [
-        ('STP','Sin transporte público','movilidad'),
-        ('EVP','Estacionamiento en vía pública','movilidad'),
-        ('DEB','Deterioro en banqueta','movilidad'),
-        ('COV','Congestión vehicular','movilidad'),
-        ('BAP','Barrera peatonal','movilidad'),
-        ('CRI','Cruce inseguro','movilidad'),
-        ('CAI','Calle insegura','movilidad'),
-        ('CME','Ciclovía en mal estado','movilidad'),
-        ('CSC','Ciclovía sin conexión','movilidad'),
-        ('VIP','Violencia psicológica','violencia'),
-        ('AEP','Acoso sexual en espacios públicos','violencia'),
-        ('VIO','Violación','violencia'),
-        ('VFI','Violencia física','violencia'),
-        ('FEM','Feminicidio','violencia'),
-        ('VIN','Violencia institucional','violencia'),
-        ('VPA','Violencia patrimonial','violencia'),
-        ('VCO','Violencia comunitaria','violencia')
-    ])
-
     # Usuarios (para panel de administración)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
