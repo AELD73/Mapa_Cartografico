@@ -116,6 +116,10 @@
       margin: 0;
     }
 
+    .btn-close-sidebar {
+      display: none;
+    }
+
     .sidebar-scroll {
       flex: 1;
       display: flex;
@@ -589,16 +593,43 @@
         padding-bottom: 8px;
         border-bottom: 1px solid #f1f5f9;
         flex-shrink: 0;
+        position: relative;
+      }
+
+      .btn-close-sidebar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        top: 0px;
+        right: 0px;
+        background: #f1f5f9;
+        border: none;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        font-size: 18px;
+        font-weight: bold;
+        color: #64748b;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+
+      .btn-close-sidebar:hover {
+        background: #e2e8f0;
+        color: #0f172a;
       }
 
       .sidebar .header h1 {
         font-size: 1.15rem;
         margin: 0;
+        padding-right: 32px; /* dejar espacio para el botón */
       }
 
       .sidebar .header p {
         font-size: 0.85rem;
         margin-top: 2px;
+        padding-right: 32px;
       }
 
       .sidebar-scroll {
@@ -907,6 +938,7 @@
         <div class="header">
           <h1>UAM Azcapotzalco</h1>
           <p>Selecciona un ícono y haz clic en el mapa</p>
+          <button type="button" class="btn-close-sidebar" id="btnCloseSidebar" title="Cerrar panel">&times;</button>
         </div>
 
         <!-- ✅ SOLO ESTO SCROLLEA -->
@@ -1384,9 +1416,14 @@
     // Toggle del panel móvil
     const fabPanel = document.getElementById("fabPanel");
     const sidebar = document.querySelector(".sidebar");
+    const btnCloseSidebar = document.getElementById("btnCloseSidebar");
 
     fabPanel?.addEventListener("click", () => {
       sidebar?.classList.toggle("mobile-open");
+    });
+
+    btnCloseSidebar?.addEventListener("click", () => {
+      sidebar?.classList.remove("mobile-open");
     });
 
     /* =========================================
