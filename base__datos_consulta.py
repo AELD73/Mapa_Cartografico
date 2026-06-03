@@ -1,28 +1,28 @@
-import sqlite3
+import os
+import pymysql
+from dotenv import load_dotenv
 
-# Conectar a la base de datos
-conn = sqlite3.connect("pines.db")
-cursor = conn.cursor()
+load_dotenv()
 
-# Obtener todas las tablas
-cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-tablas = cursor.fetchall()
+try:
+    conn = pymysql.connect(
+        host=os.getenv("MYSQL_HOST"),
+        port=int(os.getenv("MYSQL_PORT", 3306)),
+        user=os.getenv("MYSQL_USER"),
+        password=os.getenv("MYSQL_PASSWORD"),
+        database=os.getenv("MYSQL_DB"),
+        charset="utf8mb4",
+        cursorclass=pymysql.cursors.DictCursor
+    )
 
-output = "Tablas en la base de datos:\n"
+    print("Conexión a la base exitosa.")
 
-for (tabla,) in tablas:
-    output += f"\n===== TABLA: {tabla} =====\n"
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT DATABASE() AS base_actual;")
+        print(cursor.fetchone())
 
-    cursor.execute(f"SELECT * FROM {tabla}")
-    filas = cursor.fetchall()
+    conn.close()
 
-    for fila in filas:
-        output += str(fila) + "\n"
-
-conn.close()
-
-# Guardar en archivo .txt
-with open("pines_export.txt", "w", encoding="utf-8") as archivo:
-    archivo.write(output)
-
-print("Exportación completada: pines_export.txt")
+except Exception as e:
+    print("Error:")
+    print(e)
