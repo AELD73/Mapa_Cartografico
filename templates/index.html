@@ -96,6 +96,7 @@
       min-width: 0;
       overflow: hidden;
       grid-column: 1;
+      grid-row: 1;
     }
 
     .sidebar .header {
@@ -382,6 +383,7 @@
 
       min-width: 0;
       grid-column: 2;
+      grid-row: 1;
     }
 
     /* Mantén Leaflet al 100% del contenedor */
@@ -552,7 +554,7 @@
         min-height: 100%;
         border-radius: 0;
         box-shadow: none;
-        z-index: 1;
+        z-index: 1 !important;
         position: relative;
       }
 
@@ -561,7 +563,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        z-index: 99999;
+        z-index: 99999 !important;
         height: 70dvh;
         max-height: 70dvh;
         border-radius: 20px 20px 0 0;
@@ -571,13 +573,16 @@
         display: flex;
         flex-direction: column;
         gap: 10px;
-        transform: translateY(calc(100% - 70px));
+        transform: translateY(calc(100% - 70px)) translateZ(0);
+        will-change: transform;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         overflow: hidden;
       }
 
       .sidebar.mobile-open {
-        transform: translateY(0);
+        transform: translateY(0) translateZ(0);
       }
 
       .sidebar::before {
@@ -936,17 +941,6 @@
     <button class="fab-panel" id="fabPanel" type="button">☰</button>
 
     <div class="container">
-      <div id="map-container" style="position: relative;">
-        <!-- Botones flotantes del mapa -->
-        <div class="map-controls">
-          <button type="button" id="btnHome" class="map-btn" title="Ir al inicio">
-            <img src="{{ url_for('static', filename='img/Uam_azc.webp') }}" alt="UAM">
-          </button>
-          <button type="button" id="btnUndo" class="map-btn btn-undo" title="Deshacer último marcador">⤺</button>
-        </div>
-        <div id="map"></div>
-      </div>
-
       <div class="sidebar">
         <div class="header">
           <h1>UAM Azcapotzalco</h1>
@@ -1004,6 +998,17 @@
 
           <div id="saveStatus" class="save-status" style="display: none; margin-top: 10px; text-align: center; font-weight: bold;"></div>
         </div>
+      </div>
+
+      <div id="map-container" style="position: relative;">
+        <!-- Botones flotantes del mapa -->
+        <div class="map-controls">
+          <button type="button" id="btnHome" class="map-btn" title="Ir al inicio">
+            <img src="{{ url_for('static', filename='img/Uam_azc.webp') }}" alt="UAM">
+          </button>
+          <button type="button" id="btnUndo" class="map-btn btn-undo" title="Deshacer último marcador">⤺</button>
+        </div>
+        <div id="map"></div>
       </div>
     </div>
   </div>
