@@ -995,6 +995,8 @@
             <span>Pins colocados:</span>
             <span class="pin-count" id="pinCount">0</span>
           </div>
+
+          <div id="saveStatus" class="save-status" style="display: none; margin-top: 10px; text-align: center; font-weight: bold;"></div>
         </div>
       </div>
 
@@ -1598,9 +1600,13 @@
       saveSuccessModal.classList.remove('open');
     }
 
-    btnCloseSuccess?.addEventListener('click', closeSaveSuccess);
+    btnCloseSuccess?.addEventListener('click', () => {
+      window.location.href = "{{ url_for('login') }}";
+    });
     saveSuccessModal?.addEventListener('click', (e) => {
-      if (e.target === saveSuccessModal) closeSaveSuccess();
+      if (e.target === saveSuccessModal) {
+        window.location.href = "{{ url_for('login') }}";
+      }
     });
   </script>
 </body>
