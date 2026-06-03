@@ -131,12 +131,12 @@
       background: #e0f2fe;
       border: 2px solid #bae6fd;
       border-radius: 12px;
-      padding: 10px 14px;
+      padding: 6px 12px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 2px;
       box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
-      margin-bottom: 2px;
+      margin-bottom: 8px;
     }
 
     .selected-icon-box {
@@ -914,19 +914,19 @@
           <p>Selecciona un ícono y haz clic en el mapa</p>
         </div>
 
-        <!-- Recuadro del Ícono Seleccionado -->
-        <div id="selectedIconDisplay" class="selected-icon-display">
-          <div class="selected-icon-box">
-            <span class="selected-icon-label-title">Seleccionado:</span>
-            <div class="selected-icon-content">
-              <img id="selectedIconImg" src="" alt="Icono" class="selected-icon-img-preview" style="display: none;">
-              <span id="selectedIconLabel" class="selected-icon-text">Ninguno</span>
-            </div>
-          </div>
-        </div>
-
         <!-- ✅ SOLO ESTO SCROLLEA -->
         <div class="sidebar-scroll">
+          <!-- Recuadro del Ícono Seleccionado -->
+          <div id="selectedIconDisplay" class="selected-icon-display">
+            <div class="selected-icon-box">
+              <span class="selected-icon-label-title">Seleccionado:</span>
+              <div class="selected-icon-content">
+                <img id="selectedIconImg" src="" alt="Icono" class="selected-icon-img-preview" style="display: none;">
+                <span id="selectedIconLabel" class="selected-icon-text">Ninguno</span>
+              </div>
+            </div>
+          </div>
+
           <div id="iconGroups" class="icon-groups"></div>
 
           <div class="instructions">
