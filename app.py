@@ -141,6 +141,16 @@ def init_db():
         )
     """)
 
+    # Migración automática: verificar si la columna dentro_malla ya existe, si no, agregarla.
+    # Esto evita OperationalError en bases de datos ya existentes antes del cambio.
+    try:
+        cursor.execute("PRAGMA table_info(pines)")
+        columns = [row["name"] for row in cursor.fetchall()]
+        if "dentro_malla" not in columns:
+            cursor.execute("ALTER TABLE pines ADD COLUMN dentro_malla INTEGER")
+    except Exception:
+        pass
+
     # Catálogo de tipos de pines (movilidad / violencia)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS catalogo_pines (
