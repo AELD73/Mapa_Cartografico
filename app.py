@@ -196,9 +196,6 @@ def init_db():
             FOREIGN KEY(visita_id) REFERENCES visitas(id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
-
-    # Migración automática: verificar si la columna dentro_malla ya existe, si no, agregarla.
-    # Esto evita OperationalError en bases de datos ya existentes antes del cambio.
     try:
         cursor.execute("PRAGMA table_info(pines)")
         columns = [row["name"] for row in cursor.fetchall()]
