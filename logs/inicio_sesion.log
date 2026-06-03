@@ -1,0 +1,56 @@
+2026-06-02 20:29:33,571 - INFO - Inicio de sesión exitoso. Folio asignado: 76 (Edad: 43, Origen: 'centro comercial', Destino: 'prueba2').
+2026-06-02 20:40:46,783 - ERROR - Error al iniciar sesión / registrar visita (Edad: 45, Origen: 'prueba', Destino: 'prueba2'). Error: not all arguments converted during string formatting
+Traceback (most recent call last):
+  File "C:\Users\lopez\OneDrive\Escritorio\Mapa_Cartografico\app.py", line 705, in login
+    cursor.execute(
+    ~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<3 lines>...
+        (edad, origen, destino, datetime.now().isoformat(timespec="seconds")),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\lopez\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 157, in execute
+    query = self.mogrify(query, args)
+  File "C:\Users\lopez\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 135, in mogrify
+    query = query % self._escape_args(args, conn)
+            ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TypeError: not all arguments converted during string formatting
+2026-06-02 20:40:59,910 - ERROR - Error al iniciar sesión / registrar visita (Edad: 67, Origen: 'ejemplo', Destino: 'prueba'). Error: not all arguments converted during string formatting
+Traceback (most recent call last):
+  File "C:\Users\lopez\OneDrive\Escritorio\Mapa_Cartografico\app.py", line 705, in login
+    cursor.execute(
+    ~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<3 lines>...
+        (edad, origen, destino, datetime.now().isoformat(timespec="seconds")),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\lopez\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 157, in execute
+    query = self.mogrify(query, args)
+  File "C:\Users\lopez\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 135, in mogrify
+    query = query % self._escape_args(args, conn)
+            ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TypeError: not all arguments converted during string formatting
+2026-06-02 20:48:50,014 - ERROR - Error al iniciar sesión / registrar visita (Edad: 43, Origen: 'centro comercial', Destino: 'UAM Azc'). Error: not all arguments converted during string formatting
+Traceback (most recent call last):
+  File "C:\Users\lopez\OneDrive\Escritorio\Mapa_Cartografico\app.py", line 749, in login
+    cursor.execute(
+    ~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<3 lines>...
+        (edad, origen, destino, datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\lopez\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 157, in execute
+    query = self.mogrify(query, args)
+  File "C:\Users\lopez\AppData\Local\Programs\Python\Python313\Lib\site-packages\pymysql\cursors.py", line 135, in mogrify
+    query = query % self._escape_args(args, conn)
+            ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TypeError: not all arguments converted during string formatting
+2026-06-02 20:51:51,923 - INFO - Inicio de sesión exitoso. Folio asignado: 0 (Edad: 43, Origen: 'centro comercial', Destino: 'UAM Azc'). Nota: Se detectó coincidencia de datos con el folio previo 18 (mismo perfil de participante).

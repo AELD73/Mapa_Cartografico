@@ -1,26 +1,93 @@
 import os
-import sqlite3
 from datetime import datetime, timedelta
 from functools import wraps
 from io import BytesIO
 import json
 
 import pandas as pd 
+import pymysql
+from pymysql.err import IntegrityError, OperationalError
+from dotenv import load_dotenv
 from flask import (
     Flask, render_template, request, jsonify, send_file, g,
     redirect, url_for, session, flash
 )
 from werkzeug.security import generate_password_hash, check_password_hash
+import hashlib
+import hmac
+import werkzeug.security
+
+# Interceptor para corregir el error de memoria (ValueError: unsupported hash type scrypt)
+_original_check_password_hash = werkzeug.security.check_password_hash
+
+def _safe_check_password_hash(pwhash, password):
+    if pwhash and pwhash.startswith("scrypt:"):
+        try:
+            # Estructura del hash scrypt de Werkzeug: scrypt:n:r:p$salt$hash
+            parts = pwhash.split("$")
+            if len(parts) == 3:
+                params, salt, hash_val = parts
+                param_parts = params.split(":")
+                if len(param_parts) == 4 and param_parts[0] == "scrypt":
+                    n = int(param_parts[1])
+                    r = int(param_parts[2])
+                    p = int(param_parts[3])
+                    # Calculamos el hash usando un maxmem de 1GB
+                    dk = hashlib.scrypt(
+                        password.encode("utf-8"),
+                        salt=salt.encode("utf-8"),
+                        n=n,
+                        r=r,
+                        p=p,
+                        maxmem=1024 * 1024 * 1024
+                    )
+                    return hmac.compare_digest(dk.hex(), hash_val)
+        except Exception:
+            pass
+    return _original_check_password_hash(pwhash, password)
+
+werkzeug.security.check_password_hash = _safe_check_password_hash
+check_password_hash = _safe_check_password_hash
 from werkzeug.utils import secure_filename
 import zipfile
 import shapefile
 import shutil
 import pyproj
 
+load_dotenv()
+
 BASE_DIR = os.path.dirname(__file__)
-DB_PATH = os.path.join(BASE_DIR, "pines.db")
 LAYERS_DIR = os.path.join(BASE_DIR, "static", "layers")
 os.makedirs(LAYERS_DIR, exist_ok=True)
+
+import logging
+from logging.handlers import RotatingFileHandler
+
+# Configurar carpeta de logs
+LOGS_DIR = os.path.join(BASE_DIR, "logs")
+os.makedirs(LOGS_DIR, exist_ok=True)
+
+# Helper para configurar loggers rotativos
+def setup_logger(name, filename, level=logging.INFO):
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler = RotatingFileHandler(
+        os.path.join(LOGS_DIR, filename),
+        maxBytes=10 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8"
+    )
+    handler.setFormatter(formatter)
+    
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    if not logger.handlers:
+        logger.addHandler(handler)
+    return logger
+
+# Inicializar los loggers específicos
+login_logger = setup_logger("login", "inicio_sesion.log")
+pines_logger = setup_logger("pines", "pines.log")
+usuarios_logger = setup_logger("usuarios", "usuarios.log")
 
 app = Flask(__name__)
 # Llave secreta para manejo de sesiones (cookies)
@@ -32,10 +99,47 @@ app.permanent_session_lifetime = timedelta(minutes=3)
 # -----------------------
 # DB helpers
 # -----------------------
+class MySQLConnectionWrapper:
+    """Pequeño adaptador para mantener la forma de uso de app.py con MySQL."""
+    def __init__(self, conn):
+        self.conn = conn
+
+    def cursor(self):
+        return self.conn.cursor()
+
+    def execute(self, sql, params=None):
+        cursor = self.conn.cursor()
+        cursor.execute(sql.replace("?", "%s"), params or ())
+        return cursor
+
+    def executemany(self, sql, params=None):
+        cursor = self.conn.cursor()
+        cursor.executemany(sql.replace("?", "%s"), params or [])
+        return cursor
+
+    def commit(self):
+        return self.conn.commit()
+
+    def rollback(self):
+        return self.conn.rollback()
+
+    def close(self):
+        return self.conn.close()
+
+
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
+        conn = pymysql.connect(
+            host=os.environ.get("MYSQL_HOST", "localhost"),
+            port=int(os.environ.get("MYSQL_PORT", "3306")),
+            user=os.environ.get("MYSQL_USER", "root"),
+            password=os.environ.get("MYSQL_PASSWORD", ""),
+            database=os.environ.get("MYSQL_DB", "pines"),
+            charset="utf8mb4",
+            cursorclass=pymysql.cursors.DictCursor,
+            autocommit=False,
+        )
+        g.db = MySQLConnectionWrapper(conn)
     return g.db
 
 
@@ -46,6 +150,22 @@ def close_db(exception):
         db.close()
 
 
+def create_index_if_not_exists(cursor, table_name, index_name, columns_sql):
+    cursor.execute(
+        """
+        SELECT COUNT(1) AS total
+        FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = %s
+          AND INDEX_NAME = %s
+        """,
+        (table_name, index_name),
+    )
+    exists = cursor.fetchone()["total"]
+    if not exists:
+        cursor.execute(f"CREATE INDEX {index_name} ON {table_name} ({columns_sql})")
+
+
 def init_db():
     db = get_db()
     cursor = db.cursor()
@@ -53,42 +173,42 @@ def init_db():
     # Tabla para las visitas (datos del formulario login.html)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS visitas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            edad INTEGER,
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            edad INT,
             origen TEXT,
             destino TEXT,
-            creado_en TEXT NOT NULL
-        )
+            creado_en DATETIME NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
 
     # Pins colocados en el mapa, ligados a una visita
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS pines (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            visita_id INTEGER NOT NULL,
-            codigo_pin TEXT NOT NULL,
-            lat REAL NOT NULL,
-            lon REAL NOT NULL,
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            visita_id INT NOT NULL,
+            codigo_pin VARCHAR(20) NOT NULL,
+            lat DOUBLE NOT NULL,
+            lon DOUBLE NOT NULL,
             nom TEXT,
             idu TEXT,
-            dentro_malla INTEGER,
-            creado_en TEXT NOT NULL,
+            dentro_malla TINYINT,
+            creado_en DATETIME NOT NULL,
             FOREIGN KEY(visita_id) REFERENCES visitas(id)
-        )
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
 
     # Catálogo de tipos de pines (movilidad / violencia)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS catalogo_pines (
-            codigo TEXT PRIMARY KEY,
-            nombre TEXT NOT NULL,
-            categoria TEXT NOT NULL CHECK(categoria IN ('movilidad','violencia'))
-        )
+            codigo VARCHAR(20) PRIMARY KEY,
+            nombre VARCHAR(255) NOT NULL,
+            categoria ENUM('movilidad','violencia') NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
 
     cursor.executemany("""
-        INSERT OR IGNORE INTO catalogo_pines (codigo, nombre, categoria)
-        VALUES (?, ?, ?)
+        INSERT IGNORE INTO catalogo_pines (codigo, nombre, categoria)
+        VALUES (%s, %s, %s)
     """, [
         ('STP','Sin transporte público','movilidad'),
         ('EVP','Estacionamiento en vía pública','movilidad'),
@@ -112,45 +232,43 @@ def init_db():
     # Usuarios (para panel de administración)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(100) UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            role TEXT NOT NULL CHECK(role IN ('admin','user'))
-        )
+            role ENUM('admin','user') NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
 
     # Configuración del mapa
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS settings (
-            id INTEGER PRIMARY KEY CHECK(id = 1),
-            center_lon REAL NOT NULL DEFAULT -99.1332,
-            center_lat REAL NOT NULL DEFAULT 19.4326,
-            zoom REAL NOT NULL DEFAULT 12
-        )
+            id INT PRIMARY KEY,
+            center_lon DOUBLE NOT NULL DEFAULT -99.1332,
+            center_lat DOUBLE NOT NULL DEFAULT 19.4326,
+            zoom DOUBLE NOT NULL DEFAULT 12
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
-    cursor.execute("INSERT OR IGNORE INTO settings (id) VALUES (1)")
+    cursor.execute("INSERT IGNORE INTO settings (id) VALUES (1)")
 
     # Tabla para capas (shapefiles convertidos a GeoJSON)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS layers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            filename TEXT NOT NULL UNIQUE,
-            color TEXT DEFAULT '#3388ff',
-            icon TEXT,
-            created_at TEXT NOT NULL
-        )
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            filename VARCHAR(255) NOT NULL UNIQUE,
+            color VARCHAR(20) DEFAULT '#3388ff',
+            icon VARCHAR(255),
+            created_at DATETIME NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
 
     # Índices para acelerar consultas
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_pines_visita ON pines(visita_id)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_pines_codigo ON pines(codigo_pin)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_pines_created ON pines(creado_en)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_visitas_created ON visitas(creado_en)")
+    create_index_if_not_exists(cursor, "pines", "idx_pines_visita", "visita_id")
+    create_index_if_not_exists(cursor, "pines", "idx_pines_codigo", "codigo_pin")
+    create_index_if_not_exists(cursor, "pines", "idx_pines_created", "creado_en")
+    create_index_if_not_exists(cursor, "visitas", "idx_visitas_created", "creado_en")
 
     db.commit()
-
-
 
 
 # -----------------------
@@ -257,7 +375,7 @@ def get_pins():
     year = request.args.get("year")
 
     if date_str:
-        clauses.append("strftime('%Y-%m-%d', creado_en) = ?")
+        clauses.append("DATE(creado_en) = ?")
         try:
             params.append(datetime.fromisoformat(date_str).date().isoformat())
         except ValueError:
@@ -269,13 +387,13 @@ def get_pins():
             datetime(int(y), int(m), 1)
         except Exception:
             return jsonify({"error": "month inválido (YYYY-MM)"}), 400
-        clauses.append("strftime('%Y-%m', creado_en) = ?")
+        clauses.append("DATE_FORMAT(creado_en, '%%Y-%%m') = ?")
         params.append(month)
 
     if year:
         if not (year.isdigit() and len(year) == 4):
             return jsonify({"error": "year inválido (YYYY)"}), 400
-        clauses.append("strftime('%Y', creado_en) = ?")
+        clauses.append("YEAR(creado_en) = ?")
         params.append(year)
 
     if start or end:
@@ -326,25 +444,37 @@ def add_pin():
     dentro_val = 1 if dentro else 0
 
     db = get_db()
-    db.execute(
-        """
-        INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, dentro_malla, creado_en)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            int(visita_id),
-            codigo_pin,
-            float(lat),
-            float(lon),
-            nom or None,
-            idu or None,
-            dentro_val,
-            datetime.now().isoformat(timespec="seconds"),
-        ),
-    )
-    db.commit()
-    new_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
-    return jsonify({"ok": True, "id": new_id}), 201
+    try:
+        cursor = db.execute(
+            """
+            INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, dentro_malla, creado_en)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(visita_id),
+                codigo_pin,
+                float(lat),
+                float(lon),
+                nom or None,
+                idu or None,
+                dentro_val,
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            ),
+        )
+        db.commit()
+        new_id = cursor.lastrowid
+        pines_logger.info(
+            f"Pin agregado con éxito. ID: {new_id}, Folio (visita_id): {visita_id}, Código: '{codigo_pin}', "
+            f"Lat: {lat}, Lon: {lon}, Nom: '{nom}', Idu: '{idu}', Dentro Malla: {dentro_val}."
+        )
+        return jsonify({"ok": True, "id": new_id}), 201
+    except Exception as e:
+        pines_logger.error(
+            f"Error al guardar pin para Folio (visita_id) {visita_id}. "
+            f"Datos recibidos: Código: '{codigo_pin}', Lat: {lat}, Lon: {lon}. Error: {str(e)}",
+            exc_info=True
+        )
+        return jsonify({"error": "Error interno al guardar el pin."}), 500
 
 
 # -----------------------
@@ -401,7 +531,7 @@ def export_excel():
             datetime.fromisoformat(date_str)
         except ValueError:
             return "date inválida (YYYY-MM-DD)", 400
-        clauses.append("strftime('%Y-%m-%d', creado_en) = ?")
+        clauses.append("DATE(creado_en) = ?")
         params.append(date_str)
 
     if month:
@@ -410,13 +540,13 @@ def export_excel():
             datetime(int(y), int(m), 1)
         except Exception:
             return "month inválido (YYYY-MM)", 400
-        clauses.append("strftime('%Y-%m', creado_en) = ?")
+        clauses.append("DATE_FORMAT(creado_en, '%%Y-%%m') = ?")
         params.append(month)
 
     if year:
         if not (year.isdigit() and len(year) == 4):
             return "year inválido (YYYY)", 400
-        clauses.append("strftime('%Y', creado_en) = ?")
+        clauses.append("YEAR(creado_en) = ?")
         params.append(year)
 
     if start or end:
@@ -436,7 +566,8 @@ def export_excel():
             params.append(end)
 
     where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
-    df = pd.read_sql_query(base + where + " ORDER BY id", db, params=params)
+    query_sql = (base + where + " ORDER BY id").replace("?", "%s")
+    df = pd.read_sql_query(query_sql, db.conn, params=params)
 
     output = BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
@@ -493,7 +624,7 @@ def admin_create():
     if not username or not password:
         flash("Usuario y contraseña son obligatorios.", "error")
         return redirect(url_for("admin_panel"))
-    pw_hash = generate_password_hash(password)
+    pw_hash = generate_password_hash(password, method="pbkdf2:sha256")
     db = get_db()
     try:
         db.execute(
@@ -501,9 +632,14 @@ def admin_create():
             (username, pw_hash, "admin"),
         )
         db.commit()
+        usuarios_logger.info(f"Usuario administrador creado exitosamente desde panel: '{username}'")
         flash("Administrador creado.", "ok")
-    except sqlite3.IntegrityError:
+    except IntegrityError as e:
+        usuarios_logger.error(f"Error al crear administrador '{username}' desde panel (el usuario ya existe): {str(e)}")
         flash("Ese usuario ya existe.", "error")
+    except Exception as e:
+        usuarios_logger.error(f"Error inesperado al crear administrador '{username}' desde panel: {str(e)}", exc_info=True)
+        flash("Error interno al crear el administrador.", "error")
     return redirect(url_for("admin_panel"))
 
 
@@ -562,17 +698,22 @@ def admin_register():
             flash("Usuario y contraseña son obligatorios.", "error")
             return render_template("registro_admin.html")
 
-        pw_hash = generate_password_hash(password)
+        pw_hash = generate_password_hash(password, method="pbkdf2:sha256")
         try:
             db.execute(
                 "INSERT INTO users (username, password_hash, role) VALUES (?,?,?)",
                 (username, pw_hash, "admin"),
             )
             db.commit()
+            usuarios_logger.info(f"Usuario administrador creado exitosamente desde registro: '{username}'")
             flash("Administrador creado. Ya puedes iniciar sesión.", "ok")
             return redirect(url_for("login"))
-        except sqlite3.IntegrityError:
+        except IntegrityError as e:
+            usuarios_logger.error(f"Error al registrar administrador '{username}' desde registro (el usuario ya existe): {str(e)}")
             flash("Ese usuario ya existe.", "error")
+        except Exception as e:
+            usuarios_logger.error(f"Error inesperado al registrar administrador '{username}' desde registro: {str(e)}", exc_info=True)
+            flash("Error interno al registrar el administrador.", "error")
 
     return render_template("registro_admin.html")
 
@@ -603,21 +744,49 @@ def login():
         return render_template("login.html")
 
     db = get_db()
-    cursor = db.cursor()
-    cursor.execute(
-        """
-        INSERT INTO visitas (edad, origen, destino, creado_en)
-        VALUES (?, ?, ?, ?)
-        """,
-        (edad, origen, destino, datetime.now().isoformat(timespec="seconds")),
-    )
-    db.commit()
+    try:
+        cursor = db.cursor()
+        cursor.execute(
+            """
+            INSERT INTO visitas (edad, origen, destino, creado_en)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (edad, origen, destino, datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+        )
+        db.commit()
 
-    visita_id = cursor.lastrowid
-    session["visita_id"] = visita_id
-    session.permanent = True
-    session["last_activity"] = datetime.utcnow().isoformat()
+        visita_id = cursor.lastrowid
+        session["visita_id"] = visita_id
+        session.permanent = True
+        session["last_activity"] = datetime.utcnow().isoformat()
 
+        # Validación de duplicidad (conflicto)
+        duplicate_check = db.execute(
+            """
+            SELECT id FROM visitas 
+            WHERE edad = ? AND origen = ? AND destino = ? AND id != ?
+            ORDER BY creado_en DESC LIMIT 1
+            """,
+            (edad, origen, destino, visita_id)
+        ).fetchone()
+
+        if duplicate_check:
+            login_logger.info(
+                f"Inicio de sesión exitoso. Folio asignado: {visita_id} (Edad: {edad}, Origen: '{origen}', Destino: '{destino}'). "
+                f"Nota: Se detectó coincidencia de datos con el folio previo {duplicate_check['id']} (mismo perfil de participante)."
+            )
+        else:
+            login_logger.info(
+                f"Inicio de sesión exitoso. Folio asignado: {visita_id} (Edad: {edad}, Origen: '{origen}', Destino: '{destino}')."
+            )
+
+    except Exception as e:
+        login_logger.error(
+            f"Error al iniciar sesión / registrar visita (Edad: {edad_raw}, Origen: '{origen}', Destino: '{destino}'). Error: {str(e)}",
+            exc_info=True
+        )
+        flash("Error interno al procesar el inicio de sesión.", "error")
+        return render_template("login.html")
 
     return redirect(url_for("index", folio=visita_id))
 
@@ -665,22 +834,33 @@ def add_pins_bulk():
                 nom or None,
                 idu or None,
                 dentro_val,
-                datetime.now().isoformat(timespec="seconds"),
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             ))
         except Exception:
             return jsonify({"error": f"Pin #{i}: datos inválidos"}), 400
 
     db = get_db()
-    db.executemany(
-        """
-        INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, dentro_malla ,creado_en)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        rows_to_insert
-    )
-    db.commit()
+    try:
+        db.executemany(
+            """
+            INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, dentro_malla ,creado_en)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            rows_to_insert
+        )
+        db.commit()
 
-    return jsonify({"ok": True, "saved": len(rows_to_insert)}), 201
+        pines_logger.info(
+            f"Pines masivos agregados con éxito para Folio (visita_id) {visita_id}. "
+            f"Cantidad de pines guardados: {len(rows_to_insert)}."
+        )
+        return jsonify({"ok": True, "saved": len(rows_to_insert)}), 201
+    except Exception as e:
+        pines_logger.error(
+            f"Error al guardar pines masivos para Folio (visita_id) {visita_id}. Error: {str(e)}",
+            exc_info=True
+        )
+        return jsonify({"error": "Error interno al guardar los pines masivos."}), 500
 
 # -----------------------
 # Gestión de capas (Archivos Shapefile)
@@ -821,7 +1001,7 @@ def upload_layer():
         if existing:
             # Si sube nuevo icono, actualizamos. Si no, mantenemos el anterior (o null si quiere borrar? por ahora simple)
             update_sql = "UPDATE layers SET created_at=?, color=?"
-            params = [datetime.now().isoformat(), color]
+            params = [datetime.now().strftime("%Y-%m-%d %H:%M:%S"), color]
             
             if icon_filename:
                 update_sql += ", icon=?"
@@ -834,7 +1014,7 @@ def upload_layer():
             flash("Capa actualizada correctamente.", "ok")
         else:
             db.execute("INSERT INTO layers (name, filename, color, icon, created_at) VALUES (?, ?, ?, ?, ?)",
-                      (name, json_filename, color, icon_filename, datetime.now().isoformat()))
+                      (name, json_filename, color, icon_filename, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
             flash("Capa subida y procesada correctamente.", "ok")
         
         db.commit()
@@ -873,22 +1053,44 @@ def get_layers_api():
         })
     return jsonify(data)
 
-"""
-Cración de ruta para descarga de BD en formato Excel, usando la función exportar_base_datos_excel de base_datos.py
-"""
-from flask import send_file
-from base_datos import exportar_base_datos_excel
-
+# -----------------------
+# Descargar base completa en Excel
+# -----------------------
 @app.route("/admin/download")
 def download_db():
-    output = exportar_base_datos_excel()
+    db = get_db()
+    output = BytesIO()
+
+    queries = {
+        "visitas": "SELECT * FROM visitas ORDER BY id",
+        "pines": "SELECT * FROM pines ORDER BY id",
+        "catalogo_pines": "SELECT * FROM catalogo_pines ORDER BY codigo",
+        "settings": "SELECT * FROM settings ORDER BY id",
+        "layers": "SELECT * FROM layers ORDER BY id",
+        "users": "SELECT id, username, role FROM users ORDER BY id",
+    }
+
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        for sheet_name, query in queries.items():
+            df = pd.read_sql_query(query, db.conn)
+            df.to_excel(writer, sheet_name=sheet_name[:31], index=False)
+            ws = writer.sheets[sheet_name[:31]]
+            for i, col in enumerate(df.columns):
+                width = min(
+                    max([len(str(x)) for x in df[col].astype(str).values] + [len(col)]) + 2,
+                    40,
+                )
+                ws.set_column(i, i, width)
+
+    output.seek(0)
 
     return send_file(
         output,
         as_attachment=True,
         download_name="base_completa.xlsx",
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
 
 #Implementación de identificador para la malla
 
@@ -935,4 +1137,4 @@ if __name__ == "__main__":
     with app.app_context():
         init_db()
 
-    app.run(host="0.0.0.0", port=8889, debug=True)
+    app.run(host="0.0.0.0", port=8080, debug=True)
