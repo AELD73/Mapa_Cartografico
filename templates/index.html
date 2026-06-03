@@ -95,6 +95,7 @@
       height: 100%;
       min-width: 0;
       overflow: hidden;
+      grid-column: 1;
     }
 
     .sidebar .header {
@@ -380,6 +381,7 @@
       background: #fff;
 
       min-width: 0;
+      grid-column: 2;
     }
 
     /* Mantén Leaflet al 100% del contenedor */
@@ -934,6 +936,17 @@
     <button class="fab-panel" id="fabPanel" type="button">☰</button>
 
     <div class="container">
+      <div id="map-container" style="position: relative;">
+        <!-- Botones flotantes del mapa -->
+        <div class="map-controls">
+          <button type="button" id="btnHome" class="map-btn" title="Ir al inicio">
+            <img src="{{ url_for('static', filename='img/Uam_azc.webp') }}" alt="UAM">
+          </button>
+          <button type="button" id="btnUndo" class="map-btn btn-undo" title="Deshacer último marcador">⤺</button>
+        </div>
+        <div id="map"></div>
+      </div>
+
       <div class="sidebar">
         <div class="header">
           <h1>UAM Azcapotzalco</h1>
@@ -991,17 +1004,6 @@
 
           <div id="saveStatus" class="save-status" style="display: none; margin-top: 10px; text-align: center; font-weight: bold;"></div>
         </div>
-      </div>
-
-      <div id="map-container" style="position: relative;">
-        <!-- Botones flotantes del mapa -->
-        <div class="map-controls">
-          <button type="button" id="btnHome" class="map-btn" title="Ir al inicio">
-            <img src="{{ url_for('static', filename='img/Uam_azc.webp') }}" alt="UAM">
-          </button>
-          <button type="button" id="btnUndo" class="map-btn btn-undo" title="Deshacer último marcador">⤺</button>
-        </div>
-        <div id="map"></div>
       </div>
     </div>
   </div>
