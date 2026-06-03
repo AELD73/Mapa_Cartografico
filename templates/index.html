@@ -910,6 +910,25 @@
       line-height: 1.5;
     }
   </style>
+
+  {% if show_stickers == 0 or show_stickers == '0' or not show_stickers %}
+  <style>
+    #selectedIconDisplay,
+    .icon-groups,
+    .instructions,
+    .status-bar,
+    #btnGuardar {
+      display: none !important;
+    }
+    
+    @media (max-width: 820px) {
+      .sidebar,
+      .fab-panel {
+        display: none !important;
+      }
+    }
+  </style>
+  {% endif %}
 </head>
 
 <body class="header">
@@ -944,7 +963,11 @@
       <div class="sidebar">
         <div class="header">
           <h1>UAM Azcapotzalco</h1>
+          {% if show_stickers == 0 or show_stickers == '0' or not show_stickers %}
+          <p>Consulta el mapa y sus capas</p>
+          {% else %}
           <p>Selecciona un ícono y haz clic en el mapa</p>
+          {% endif %}
           <button type="button" class="btn-close-sidebar" id="btnCloseSidebar" title="Cerrar panel">&times;</button>
         </div>
 
@@ -1017,6 +1040,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
+    const SHOW_STICKERS = {{ show_stickers | tojson if show_stickers is defined else 'true' }};
     const STATIC_IMG = "{{ url_for('static', filename='img/') }}";
 
     const ICONS_VIOLENCIA = [
@@ -1189,7 +1213,7 @@
 
               // Permitir poner pines sobre la capa
               geoLayer.on('click', function (e) {
-                if (selectedIconUrl) {
+                if (SHOW_STICKERS && selectedIconUrl) {
                   addPin(e.latlng);
                 }
               });
@@ -1219,6 +1243,7 @@
     }
 
     function addPin(latlng) {
+      if (!SHOW_STICKERS) return;
       if (!selectedIconUrl) return;
 
       const imgIcon = L.icon({

@@ -229,10 +229,15 @@ def init_db():
             id INT PRIMARY KEY,
             center_lon DOUBLE NOT NULL DEFAULT -99.1332,
             center_lat DOUBLE NOT NULL DEFAULT 19.4326,
-            zoom DOUBLE NOT NULL DEFAULT 12
+            zoom DOUBLE NOT NULL DEFAULT 12,
+            show_stickers TINYINT(1) NOT NULL DEFAULT 1
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
     cursor.execute("INSERT IGNORE INTO settings (id) VALUES (1)")
+    try:
+        cursor.execute("ALTER TABLE settings ADD COLUMN show_stickers TINYINT(1) NOT NULL DEFAULT 1")
+    except Exception:
+        pass
 
     # Tabla para capas (shapefiles convertidos a GeoJSON)
     cursor.execute("""
@@ -323,14 +328,17 @@ def enforce_idle_timeout():
 def index():
     
     folio = request.args.get("folio")
+    db = get_db()
+    s = db.execute("SELECT show_stickers FROM settings WHERE id=1").fetchone()
+    show_stickers = s["show_stickers"] if s else 1
 
     # Si hay admin logueado
     if "user_id" in session:
-        return render_template("index.html", user=session.get("username"), role=session.get("role"), folio=folio)
+        return render_template("index.html", user=session.get("username"), role=session.get("role"), folio=folio, show_stickers=show_stickers)
 
     # Si hay una visita registrada (participante normal)
     if "visita_id" in session:
-        return render_template("index.html", user=None, role=None, folio=folio)
+        return render_template("index.html", user=None, role=None, folio=folio, show_stickers=show_stickers)
 
     # Si no ha llenado formulario, mostrar login.html (encuesta)
     return render_template("login.html")
@@ -467,7 +475,7 @@ def add_pin():
 @app.route("/api/settings", methods=["GET"])
 def get_settings():
     db = get_db()
-    row = db.execute("SELECT center_lon, center_lat, zoom FROM settings WHERE id=1").fetchone()
+    row = db.execute("SELECT center_lon, center_lat, zoom, show_stickers FROM settings WHERE id=1").fetchone()
     return jsonify(dict(row)), 200
 
 
@@ -479,13 +487,14 @@ def save_settings():
         lon = float(data.get("center_lon"))
         lat = float(data.get("center_lat"))
         zoom = float(data.get("zoom"))
+        show_stickers = int(data.get("show_stickers", 1))
     except (TypeError, ValueError):
         return jsonify({"error": "Valores inválidos"}), 400
 
     db = get_db()
     db.execute(
-        "UPDATE settings SET center_lon=?, center_lat=?, zoom=? WHERE id=1",
-        (lon, lat, zoom),
+        "UPDATE settings SET center_lon=?, center_lat=?, zoom=?, show_stickers=? WHERE id=1",
+        (lon, lat, zoom, show_stickers),
     )
     db.commit()
     return jsonify({"ok": True}), 200
@@ -594,7 +603,7 @@ def admin_panel():
         "SELECT id, username FROM users WHERE role='admin' ORDER BY username"
     ).fetchall()
     s = db.execute(
-        "SELECT center_lon, center_lat, zoom FROM settings WHERE id=1"
+        "SELECT center_lon, center_lat, zoom, show_stickers FROM settings WHERE id=1"
     ).fetchone()
     layers = db.execute("SELECT * FROM layers ORDER BY created_at DESC").fetchall()
     return render_template("panel_administracion.html", admins=admins, settings=s, layers=layers)
@@ -632,7 +641,7 @@ def admin_create():
 def main_admin():
     db = get_db()
     s = db.execute(
-        "SELECT center_lon, center_lat, zoom FROM settings WHERE id=1"
+        "SELECT center_lon, center_lat, zoom, show_stickers FROM settings WHERE id=1"
     ).fetchone()
     return render_template(
         "main_admin.html", settings=s, user=session.get("username")
@@ -1116,9 +1125,12 @@ def point_in_polygon(lat, lon, polygon):
 # -----------------------
 # Main
 # -----------------------
-if __name__ == "__main__":
-    # Inicializamos la BD al arrancar la app
+# Inicializamos la BD al arrancar la app (compatible con Gunicorn)
+try:
     with app.app_context():
         init_db()
+except Exception as e:
+    print(f"Error al inicializar la base de datos: {e}")
 
+if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=True)
