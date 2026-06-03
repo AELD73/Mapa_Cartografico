@@ -116,6 +116,63 @@
       margin: 0;
     }
 
+    .sidebar-scroll {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      min-height: 0;
+      padding-right: 4px;
+    }
+
+    /* Selected Icon Box */
+    .selected-icon-display {
+      background: #e0f2fe;
+      border: 2px solid #bae6fd;
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.03);
+      margin-bottom: 2px;
+    }
+
+    .selected-icon-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .selected-icon-label-title {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #0369a1;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .selected-icon-content {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .selected-icon-img-preview {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    }
+
+    .selected-icon-text {
+      font-size: 0.95rem;
+      font-weight: 900;
+      color: #0c4a6e;
+    }
+
     /* Scroll contenido sidebar (iconos) */
     .icon-groups {
       flex: 1;
@@ -857,6 +914,17 @@
           <p>Selecciona un ícono y haz clic en el mapa</p>
         </div>
 
+        <!-- Recuadro del Ícono Seleccionado -->
+        <div id="selectedIconDisplay" class="selected-icon-display">
+          <div class="selected-icon-box">
+            <span class="selected-icon-label-title">Seleccionado:</span>
+            <div class="selected-icon-content">
+              <img id="selectedIconImg" src="" alt="Icono" class="selected-icon-img-preview" style="display: none;">
+              <span id="selectedIconLabel" class="selected-icon-text">Ninguno</span>
+            </div>
+          </div>
+        </div>
+
         <!-- ✅ SOLO ESTO SCROLLEA -->
         <div class="sidebar-scroll">
           <div id="iconGroups" class="icon-groups"></div>
@@ -951,6 +1019,19 @@
     let selectedPinCode = null;
     let pinCount = 0;
 
+    function updateSelectedIconDisplay(icon) {
+      const img = document.getElementById("selectedIconImg");
+      const label = document.getElementById("selectedIconLabel");
+      if (icon) {
+        img.src = icon.src;
+        img.style.display = "block";
+        label.textContent = icon.label || icon.name;
+      } else {
+        img.style.display = "none";
+        label.textContent = "Ninguno";
+      }
+    }
+
     function renderGroup(title, colorDot, icons) {
       const group = document.createElement("div");
       group.className = "icon-group";
@@ -977,12 +1058,14 @@
           btn.classList.add("selected");
           selectedIconUrl = icon.src;
           selectedPinCode = icon.name;
+          updateSelectedIconDisplay(icon);
         });
 
         if (!selectedIconUrl && idx === 0) {
           btn.classList.add("selected");
           selectedIconUrl = icon.src;
           selectedPinCode = icon.name;
+          updateSelectedIconDisplay(icon);
         }
 
         grid.appendChild(btn);
