@@ -148,11 +148,12 @@
     .selected-icon-box {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
       gap: 10px;
     }
 
     .selected-icon-label-title {
+      display: none;
       font-size: 0.82rem;
       font-weight: 800;
       color: #0369a1;
@@ -559,27 +560,27 @@
       }
 
       .sidebar {
-        position: fixed;
+        position: fixed !important;
         left: 0;
         right: 0;
         bottom: 0;
-        z-index: 99999 !important;
+        z-index: 999999 !important;
         height: 70dvh;
         max-height: 70dvh;
         border-radius: 20px 20px 0 0;
         box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.25);
-        background: #ffffff;
+        background: #ffffff !important;
         padding: 12px 16px 16px 16px;
         display: flex;
         flex-direction: column;
         gap: 10px;
-        transform: translateY(calc(100% - 70px));
+        transform: translateY(calc(100% - 70px)) translateZ(999px);
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         overflow: hidden;
       }
 
       .sidebar.mobile-open {
-        transform: translateY(0);
+        transform: translateY(0) translateZ(999px);
       }
 
       .sidebar::before {
@@ -637,9 +638,7 @@
       }
 
       .sidebar-scroll {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
+        display: block !important;
         flex: 1;
         overflow-y: auto;
         min-height: 0;
@@ -650,8 +649,9 @@
         display: flex;
         flex-direction: column;
         gap: 10px;
-        height: auto;
+        height: auto !important;
         min-height: 0;
+        overflow: visible;
       }
 
       .icon-group {
@@ -660,10 +660,11 @@
         gap: 8px;
         padding: 8px;
         margin-bottom: 8px;
-        background: #f8fafc;
+        background: #f8fafc !important;
         border: 2px solid #e2e8f0;
         border-radius: 12px;
-        height: auto;
+        height: auto !important;
+        overflow: visible;
       }
 
       .icon-group-title {
@@ -672,26 +673,32 @@
       }
 
       .icon-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 6px;
-        height: auto;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        height: auto !important;
+        overflow: visible !important;
       }
 
       .icon-item {
-        background: #ffffff;
-        border: 2px solid #e2e8f0;
-        border-radius: 12px;
+        flex: 1 0 22% !important;
+        /* Estima 4 columnas en pantallas medianas */
+        max-width: 23% !important;
+        background: #ffffff !important;
+        border: 2px solid #e2e8f0 !important;
+        border-radius: 12px !important;
         cursor: pointer;
-        padding: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        padding: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        height: auto !important;
+        min-height: 44px !important;
       }
 
       .icon-item.selected {
-        background: #002d3d;
-        border-color: #002d3d;
+        background: #002d3d !important;
+        border-color: #002d3d !important;
       }
 
       .icon-thumb {
@@ -703,6 +710,11 @@
       .instructions {
         padding: 8px 10px;
         font-size: 0.82rem;
+        margin-top: 10px;
+        background: #e6f0f3 !important;
+        border-radius: 12px;
+        height: auto !important;
+        overflow: visible;
       }
 
       .sidebar-footer {
@@ -746,8 +758,10 @@
     }
 
     @media (max-width: 480px) {
-      .icon-grid {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+      .icon-item {
+        flex: 1 0 28% !important;
+        /* 3 columnas */
+        max-width: 30% !important;
       }
 
       .action-buttons {
@@ -944,8 +958,9 @@
     #btnGuardar {
       display: none !important;
     }
-    
+
     @media (max-width: 820px) {
+
       .sidebar,
       .fab-panel {
         display: none !important;
@@ -984,6 +999,17 @@
     <button class="fab-panel" id="fabPanel" type="button">☰</button>
 
     <div class="container">
+      <div id="map-container" style="position: relative;">
+        <!-- Botones flotantes del mapa -->
+        <div class="map-controls">
+          <button type="button" id="btnHome" class="map-btn" title="Ir al inicio">
+            <img src="{{ url_for('static', filename='img/Uam_azc.webp') }}" alt="UAM">
+          </button>
+          <button type="button" id="btnUndo" class="map-btn btn-undo" title="Deshacer último marcador">⤺</button>
+        </div>
+        <div id="map"></div>
+      </div>
+
       <div class="sidebar">
         <div class="header">
           <h1>UAM Azcapotzalco</h1>
@@ -1010,7 +1036,7 @@
 
           <div id="iconGroups" class="icon-groups"></div>
 
-          <div class="instructions">
+          <div class="instructions" style="margin-top: 15px; margin-bottom: 15px;">
             <h3>📋 Instrucciones</h3>
             <ul>
               <li>Selecciona la problemática en la sección correspondiente</li>
@@ -1043,19 +1069,9 @@
             <span class="pin-count" id="pinCount">0</span>
           </div>
 
-          <div id="saveStatus" class="save-status" style="display: none; margin-top: 10px; text-align: center; font-weight: bold;"></div>
+          <div id="saveStatus" class="save-status"
+            style="display: none; margin-top: 10px; text-align: center; font-weight: bold;"></div>
         </div>
-      </div>
-
-      <div id="map-container" style="position: relative;">
-        <!-- Botones flotantes del mapa -->
-        <div class="map-controls">
-          <button type="button" id="btnHome" class="map-btn" title="Ir al inicio">
-            <img src="{{ url_for('static', filename='img/Uam_azc.webp') }}" alt="UAM">
-          </button>
-          <button type="button" id="btnUndo" class="map-btn btn-undo" title="Deshacer último marcador">⤺</button>
-        </div>
-        <div id="map"></div>
       </div>
     </div>
   </div>
@@ -1064,6 +1080,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
+    const SCRIPT_ROOT = {{ request.script_root | tojson }};
     const SHOW_STICKERS = {{ show_stickers | tojson if show_stickers is defined else 'true' }};
     const STATIC_IMG = "{{ url_for('static', filename='img/') }}";
 
@@ -1168,17 +1185,7 @@
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
 
-    const uamIcon = L.icon({
-      iconUrl: STATIC_IMG + "Uam_azc.webp",
-      iconSize: [40, 40],
-      iconAnchor: [20, 40],
-      popupAnchor: [0, -36],
-    });
-    L.marker(UAM_AZCAPOTZALCO, { icon: uamIcon })
-      .addTo(map)
-      .bindPopup(
-        "<b>UAM Azcapotzalco</b><br>Universidad Autónoma Metropolitana"
-      );
+    // El marcador de la UAM Azcapotzalco ahora se carga de forma dinámica junto con su capa
 
     // ✅ Control de capas (para ocultar/mostrar)
     const layerControl = L.control.layers(null, null, { collapsed: false }).addTo(map);
@@ -1186,7 +1193,7 @@
     // ✅ Cargar capas (Shapefiles) subidas por admin
     async function loadLayers() {
       try {
-        const res = await fetch("/api/layers");
+        const res = await fetch(SCRIPT_ROOT + "/api/layers");
         if (res.ok) {
           const layers = await res.json();
           for (const l of layers) {
@@ -1233,6 +1240,25 @@
 
               // Agregar al mapa y al control
               geoLayer.addTo(map);
+
+              // Si la capa tiene un icono asignado en la base de datos, colocamos el logotipo en el centro del polígono
+              if (l.icon) {
+                try {
+                  const center = geoLayer.getBounds().getCenter();
+                  const icon = L.icon({
+                    iconUrl: l.icon,
+                    iconSize: [45, 45],
+                    iconAnchor: [22, 45],
+                    popupAnchor: [0, -40]
+                  });
+                  const marker = L.marker(center, { icon: icon })
+                    .bindPopup(`<b>${l.name}</b><br>Universidad Autónoma Metropolitana`);
+                  geoLayer.addLayer(marker);
+                } catch (e) {
+                  console.error("Error al colocar icono de la capa " + l.name, e);
+                }
+              }
+
               layerControl.addOverlay(geoLayer, `<span style="color:${color}">■</span> ${l.name}`);
 
               // Permitir poner pines sobre la capa
@@ -1349,7 +1375,7 @@
       showStatus("Guardando pines...");
 
       try {
-        const res = await fetch("/api/pins/bulk", {
+        const res = await fetch(SCRIPT_ROOT + "/api/pins/bulk", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ pins: pendingPins }),
@@ -1385,12 +1411,12 @@
 
     // ✅ Regresar al login (panel del usuario)
     btnRegresar?.addEventListener("click", () => {
-      window.location.href = "/login";
+      window.location.href = SCRIPT_ROOT + "/login";
     });
 
     // ✅ Terminar (IP externa)
     btnTerminar?.addEventListener("click", () => {
-      window.location.href = "/logout";
+      window.location.href = SCRIPT_ROOT + "/logout";
     });
   </script>
 
@@ -1435,7 +1461,7 @@
           } else {
             // Navegación a OTRO dominio → cerramos sesión ya
             isInternalNavigation = false;
-            navigator.sendBeacon("/logout");
+            navigator.sendBeacon(SCRIPT_ROOT + "/logout");
           }
         },
         true
@@ -1452,7 +1478,7 @@
             isInternalNavigation = true; // formulario dentro del mismo dominio
           } else {
             isInternalNavigation = false;
-            navigator.sendBeacon("/logout");
+            navigator.sendBeacon(SCRIPT_ROOT + "/logout");
           }
         },
         true
@@ -1462,7 +1488,7 @@
       window.addEventListener("beforeunload", function () {
         // Si NO es navegación interna dentro del mismo dominio → cerrar sesión
         if (!isInternalNavigation) {
-          navigator.sendBeacon("/logout");
+          navigator.sendBeacon(SCRIPT_ROOT + "/logout");
         }
         // Para la próxima carga, que vuelva a iniciar en false
         isInternalNavigation = false;
