@@ -553,7 +553,19 @@ def add_pin():
 @app.route("/api/settings", methods=["GET"])
 def get_settings():
     db = get_db()
-    row = db.execute("SELECT center_lon, center_lat, zoom, show_stickers FROM settings WHERE id=1").fetchone()
+    row = db.execute("""
+    SELECT 
+        s.center_lon,
+        s.center_lat,
+        s.zoom,
+        s.show_stickers,
+        s.trimestre_activo,
+        ct.nombre AS trimestre_nombre
+    FROM settings s
+    LEFT JOIN catalogo_trimestres ct
+        ON ct.id = s.trimestre_activo
+    WHERE s.id = 1
+""").fetchone()
     return jsonify(dict(row)), 200
 
 
@@ -566,13 +578,17 @@ def save_settings():
         lat = float(data.get("center_lat"))
         zoom = float(data.get("zoom"))
         show_stickers = int(data.get("show_stickers", 1))
+        trimestre_activo = int(data.get("trimestre_activo"))
     except (TypeError, ValueError):
         return jsonify({"error": "Valores inválidos"}), 400
+    
+    if trimestre_activo < 1 or trimestre_activo > 4:
+        return jsonify({"error": "trimestre_activo debe ser entre 1 y 4"}), 400
 
     db = get_db()
     db.execute(
-        "UPDATE settings SET center_lon=?, center_lat=?, zoom=?, show_stickers=? WHERE id=1",
-        (lon, lat, zoom, show_stickers),
+        "UPDATE settings SET center_lon=?, center_lat=?, zoom=?, show_stickers=?, trimestre_activo=? WHERE id=1",
+        (lon, lat, zoom, show_stickers, trimestre_activo),
     )
     db.commit()
     return jsonify({"ok": True}), 200
