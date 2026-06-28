@@ -1262,6 +1262,7 @@ def download_db():
         "visitas": "SELECT * FROM visitas ORDER BY id",
         "pines": "SELECT * FROM pines ORDER BY id",
         "catalogo_pines": "SELECT * FROM catalogo_pines ORDER BY codigo",
+        "catalogo_trimestres": "SELECT * FROM catalogo_trimestres ORDER BY id",
         "settings": "SELECT * FROM settings ORDER BY id",
         "layers": "SELECT * FROM layers ORDER BY id",
         "users": "SELECT id, username, role FROM users ORDER BY id",
