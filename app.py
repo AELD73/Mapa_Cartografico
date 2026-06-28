@@ -748,7 +748,18 @@ def admin_create():
 def main_admin():
     db = get_db()
     s = db.execute(
-        "SELECT center_lon, center_lat, zoom, show_stickers FROM settings WHERE id=1"
+        """
+        SELEECT 
+            s.center_lon,
+            s.center_lat,
+            s.zoom,
+            s.show_stickers,
+            s.trimestre_activo,
+            ct.nombre AS trimestre_nombre
+        FROM settings s
+        LEFT JOIN catalogo_trimestres ct
+            ON ct.id = s.trimestre_activo
+        WHERE s.id=1"""              
     ).fetchone()
     return render_template(
         "main_admin.html", settings=s, user=session.get("username")
