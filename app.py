@@ -90,6 +90,30 @@ pines_logger = setup_logger("pines", "pines.log")
 usuarios_logger = setup_logger("usuarios", "usuarios.log")
 
 app = Flask(__name__)
+
+# Middleware para corregir rutas y HTTPS detrás de un proxy inverso (Apache)
+class CustomProxyFix:
+    def __init__(self, wsgi_app):
+        self.wsgi_app = wsgi_app
+
+    def __call__(self, environ, start_response):
+        # Apache añade automáticamente X-Forwarded-For o X-Forwarded-Host al hacer proxy
+        is_proxied = 'HTTP_X_FORWARDED_FOR' in environ or 'HTTP_X_FORWARDED_HOST' in environ
+        
+        if is_proxied:
+            # Forzar el prefijo y el esquema HTTPS de producción
+            environ['SCRIPT_NAME'] = '/labestudiosurbanos'
+            environ['wsgi.url_scheme'] = 'https'
+            
+            # Limpiar PATH_INFO si viniera repetido el prefijo
+            path_info = environ.get('PATH_INFO', '')
+            if path_info.startswith('/labestudiosurbanos'):
+                environ['PATH_INFO'] = path_info[len('/labestudiosurbanos'):]
+                
+        return self.wsgi_app(environ, start_response)
+
+app.wsgi_app = CustomProxyFix(app.wsgi_app)
+
 # Llave secreta para manejo de sesiones (cookies)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "cambia_esta_llave_supersecreta")
 # Tiempo de vida de la sesión (3 minutos de inactividad)
@@ -929,64 +953,132 @@ def upload_layer():
                 flash("El ZIP no contiene ningún archivo .shp", "error")
                 return redirect(url_for("admin_panel"))
 
+            # Asegurar consistencia de nombres (case-sensitivity) en Linux para los archivos compañeros (.dbf, .shx, .prj)
+            shp_dir = os.path.dirname(shp_file)
+            shp_base = os.path.splitext(os.path.basename(shp_file))[0]
+            for f in os.listdir(shp_dir):
+                f_lower = f.lower()
+                for ext in ['.dbf', '.shx', '.prj']:
+                    if f_lower.endswith(ext) and f != (shp_base + ext):
+                        try:
+                            os.rename(os.path.join(shp_dir, f), os.path.join(shp_dir, shp_base + ext))
+                        except Exception:
+                            pass
+
             # Leer con pyshp
             sf = shapefile.Reader(shp_file)
             fields = [x[0] for x in sf.fields][1:]
             records = sf.records()
             shapes = sf.shapes()
 
-            # Preparar reproyección de UTM zona 14N a WGS84
-            # (Asumiendo datos de CDMX que usualmente son UTM 14N, EPSG:32614)
-            # Para mayor robustez idealmente se leería el archivo .prj, pero requiere GDAL
-            transformer = pyproj.Transformer.from_crs("epsg:32614", "epsg:4326", always_xy=True)
+            # Intentar leer la proyección original desde el archivo .prj
+            prj_file = os.path.splitext(shp_file)[0] + ".prj"
+            src_crs = "epsg:32614"  # Proyección por defecto (UTM Zona 14N)
+            
+            if os.path.exists(prj_file):
+                try:
+                    with open(prj_file, "r", encoding="utf-8", errors="ignore") as pf:
+                        wkt = pf.read().strip()
+                        if wkt:
+                            src_crs = pyproj.CRS.from_wkt(wkt)
+                except Exception as e:
+                    # En caso de error, dejamos el valor por defecto
+                    pass
 
-            features = []
-            for i, shp in enumerate(shapes):
-                # pyshp 2.x+ tiene __geo_interface__
-                
-                # Manejo de records
-                rec = records[i]
-                
-                # Transformar geometría si parece proyectada (valores grandes)
-                # Simple check: si x > 180, asumimos proyectada
-                geo = shp.__geo_interface__
-                
-                def reproject_coords(coords):
-                    if isinstance(coords[0], (list, tuple)):
-                        return [reproject_coords(c) for c in coords]
-                    else:
-                        # Si es coordenada simple (x, y)
-                        x, y = coords[0], coords[1]
-                        if x > 180 or x < -180:
-                            lon, lat = transformer.transform(x, y)
-                            return [lon, lat]
-                        return [x, y]
+            transformer = pyproj.Transformer.from_crs(src_crs, "epsg:4326", always_xy=True)
 
-                if geo['type'] == 'Point':
-                    geo['coordinates'] = reproject_coords(geo['coordinates'])
-                elif geo['type'] in ['Polygon', 'LineString', 'MultiPolygon', 'MultiLineString']:
-                    geo['coordinates'] = reproject_coords(geo['coordinates'])
-                
-                # Convertir a dict
-                props = {}
-                for j, field_name in enumerate(fields):
-                    val = rec[j]
-                    # Fix bytes to str if needed
-                    if isinstance(val, bytes):
-                        val = val.decode('utf-8', errors='replace')
-                    props[field_name] = val
+            dissolve = request.form.get("dissolve_polygons") == "on"
 
+            if dissolve:
+                from shapely.geometry import shape, mapping
+                from shapely.ops import unary_union
+                
+                geom_objects = []
+                for shp in shapes:
+                    geo = shp.__geo_interface__
+                    
+                    def reproject_coords(coords):
+                        if isinstance(coords[0], (list, tuple)):
+                            return [reproject_coords(c) for c in coords]
+                        else:
+                            x, y = coords[0], coords[1]
+                            if x > 180 or x < -180:
+                                lon, lat = transformer.transform(x, y)
+                                return [lon, lat]
+                            return [x, y]
+                    
+                    if geo['type'] == 'Point':
+                        geo['coordinates'] = reproject_coords(geo['coordinates'])
+                    elif geo['type'] in ['Polygon', 'LineString', 'MultiPolygon', 'MultiLineString']:
+                        geo['coordinates'] = reproject_coords(geo['coordinates'])
+                    
+                    try:
+                        geom_obj = shape(geo)
+                        if geom_obj.is_valid:
+                            geom_objects.append(geom_obj)
+                    except Exception:
+                        pass
+                
+                union_geom = unary_union(geom_objects)
+                geo_interface = mapping(union_geom)
+                
                 feature = {
                     "type": "Feature",
-                    "properties": props,
-                    "geometry": geo
+                    "properties": {"name": name, "description": "Capa contorno fusionada"},
+                    "geometry": geo_interface
                 }
-                features.append(feature)
+                geojson = {
+                    "type": "FeatureCollection",
+                    "features": [feature]
+                }
+            else:
+                features = []
+                for i, shp in enumerate(shapes):
+                    # pyshp 2.x+ tiene __geo_interface__
+                    
+                    # Manejo de records
+                    rec = records[i]
+                    
+                    # Transformar geometría si parece proyectada (valores grandes)
+                    # Simple check: si x > 180, asumimos proyectada
+                    geo = shp.__geo_interface__
+                    
+                    def reproject_coords(coords):
+                        if isinstance(coords[0], (list, tuple)):
+                            return [reproject_coords(c) for c in coords]
+                        else:
+                            # Si es coordenada simple (x, y)
+                            x, y = coords[0], coords[1]
+                            if x > 180 or x < -180:
+                                lon, lat = transformer.transform(x, y)
+                                return [lon, lat]
+                            return [x, y]
 
-            geojson = {
-                "type": "FeatureCollection",
-                "features": features
-            }
+                    if geo['type'] == 'Point':
+                        geo['coordinates'] = reproject_coords(geo['coordinates'])
+                    elif geo['type'] in ['Polygon', 'LineString', 'MultiPolygon', 'MultiLineString']:
+                        geo['coordinates'] = reproject_coords(geo['coordinates'])
+                    
+                    # Convertir a dict
+                    props = {}
+                    for j, field_name in enumerate(fields):
+                        val = rec[j]
+                        # Fix bytes to str if needed
+                        if isinstance(val, bytes):
+                            val = val.decode('utf-8', errors='replace')
+                        props[field_name] = val
+
+                    feature = {
+                        "type": "Feature",
+                        "properties": props,
+                        "geometry": geo
+                    }
+                    features.append(feature)
+
+                geojson = {
+                    "type": "FeatureCollection",
+                    "features": features
+                }
 
             with open(json_path, "w", encoding="utf-8") as f:
                 json.dump(geojson, f)
