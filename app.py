@@ -454,8 +454,8 @@ def get_pins():
         params.append(year)
     
     if trimestre:
-        if not trimestre.isdigit() or int(trimestre) not in [1, 2, 3, 4]:
-            return jsonify({"error": "trimestre inválido (1-4)"}), 400
+        if not trimestre.isdigit() or int(trimestre) not in [1, 2, 3]:
+            return jsonify({"error": "trimestre inválido (1-3)"}), 400
         clauses.append("trimestre = ?")
         params.append(trimestre)
 
@@ -589,8 +589,8 @@ def save_settings():
     except (TypeError, ValueError):
         return jsonify({"error": "Valores inválidos"}), 400
     
-    if trimestre_activo < 1 or trimestre_activo > 4:
-        return jsonify({"error": "trimestre_activo debe ser entre 1 y 4"}), 400
+    if trimestre_activo < 1 or trimestre_activo > 3:
+        return jsonify({"error": "trimestre_activo debe ser entre 1 y 3"}), 400
 
     db = get_db()
     db.execute(
@@ -613,9 +613,10 @@ def export_excel():
     end = request.args.get("end")
     month = request.args.get("month")
     year = request.args.get("year")
+    trimestre = request.args.get("trimestre")
 
     base = """
-        SELECT id, visita_id, codigo_pin, nom, idu, lon, lat, creado_en
+        SELECT id, visita_id, codigo_pin, nom, idu, lon, lat, creado_en, trimestre
         FROM pines
     """
     params, clauses = [], []
@@ -642,6 +643,12 @@ def export_excel():
             return "year inválido (YYYY)", 400
         clauses.append("YEAR(creado_en) = ?")
         params.append(year)
+        
+    if trimestre:
+        if not trimestre.isdigit() or int(trimestre) not in [1, 2, 3]:
+            return "trimestre inválido (1-3)", 400
+        clauses.append("trimestre = ?")
+        params.append(trimestre)
 
     if start or end:
         if start:
