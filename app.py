@@ -217,6 +217,7 @@ def init_db():
             idu TEXT,
             dentro_malla TINYINT,
             creado_en DATETIME NOT NULL,
+            trimestre TINYINT NOT NULL DEFAULT 1,
             FOREIGN KEY(visita_id) REFERENCES visitas(id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
@@ -227,6 +228,12 @@ def init_db():
             cursor.execute("ALTER TABLE pines ADD COLUMN dentro_malla INTEGER")
     except Exception:
         pass
+    
+    try:
+        
+        cursor.execute("ALTER TABLE pines ADD COLUMN trimestre TINYINT NOT NULL DEFAULT 1")
+    except Exception:
+        pass
 
     # Catálogo de tipos de pines (movilidad / violencia)
     cursor.execute("""
@@ -234,6 +241,14 @@ def init_db():
             codigo VARCHAR(20) PRIMARY KEY,
             nombre VARCHAR(255) NOT NULL,
             categoria ENUM('movilidad','violencia') NOT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """)
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS catalogo_trimestres (
+            id TINYINT NOT NULL,
+            nombre VARCHAR(50) NOT NULL,
+            activo TINYINT(1) NOT NULL DEFAULT 1,
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
 
@@ -254,12 +269,18 @@ def init_db():
             center_lon DOUBLE NOT NULL DEFAULT -99.1332,
             center_lat DOUBLE NOT NULL DEFAULT 19.4326,
             zoom DOUBLE NOT NULL DEFAULT 12,
-            show_stickers TINYINT(1) NOT NULL DEFAULT 1
+            show_stickers TINYINT(1) NOT NULL DEFAULT 1,
+            trimestre_activo TINYINT NOT NULL DEFAULT 1
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """)
     cursor.execute("INSERT IGNORE INTO settings (id) VALUES (1)")
     try:
-        cursor.execute("ALTER TABLE settings ADD COLUMN show_stickers TINYINT(1) NOT NULL DEFAULT 1")
+        cursor.execute("ALTER TABLE settings ADD COLUMN trimestre_activo TINYINT NOT NULL DEFAULT 1")
+    except Exception:
+        pass
+    
+    try:
+        cursor.execute("ALTER TABLE settings ADD COLUMN show_stickers TINYINT NOT NULL DEFAULT 1")
     except Exception:
         pass
 
@@ -279,9 +300,13 @@ def init_db():
     create_index_if_not_exists(cursor, "pines", "idx_pines_visita", "visita_id")
     create_index_if_not_exists(cursor, "pines", "idx_pines_codigo", "codigo_pin")
     create_index_if_not_exists(cursor, "pines", "idx_pines_created", "creado_en")
+    create_index_if_not_exists(cursor, "pines", "idx_pines_trimestre", "trimestre")
+    create_index_if_not_exists(cursor, "pines", "idx_pines_codigo_fecha_trimestre", "codigo_pin, creado_en, trimestre")
     create_index_if_not_exists(cursor, "visitas", "idx_visitas_created", "creado_en")
 
     db.commit()
+
+
 
 
 # -----------------------
