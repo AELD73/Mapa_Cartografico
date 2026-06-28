@@ -419,7 +419,7 @@ def get_pins():
     db = get_db()
     # Usamos la tabla pines (con e) que definimos en init_db
     q = """
-        SELECT id, visita_id, codigo_pin, nom, idu, lon, lat, creado_en
+        SELECT id, visita_id, codigo_pin, nom, idu, lon, lat, creado_en, trimestre
         FROM pines
     """
     params, clauses = [], []
@@ -429,6 +429,7 @@ def get_pins():
     end = request.args.get("end")
     month = request.args.get("month")
     year = request.args.get("year")
+    trimestre = request.args.get("trimestre")
 
     if date_str:
         clauses.append("DATE(creado_en) = ?")
@@ -451,6 +452,12 @@ def get_pins():
             return jsonify({"error": "year inválido (YYYY)"}), 400
         clauses.append("YEAR(creado_en) = ?")
         params.append(year)
+    
+    if trimestre:
+        if not trimestre.isdigit() or int(trimestre) not in [1, 2, 3, 4]:
+            return jsonify({"error": "trimestre inválido (1-4)"}), 400
+        clauses.append("trimestre = ?")
+        params.append(trimestre)
 
     if start or end:
         if start:
