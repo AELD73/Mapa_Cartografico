@@ -307,8 +307,23 @@ def init_db():
     db.commit()
 
 
+# función, identificar nueva función
 
-
+def get_trimestre_activo(db):
+    row = db.execute("SELECT trimestre_activo FROM settings WHERE id=1").fetchone()
+    
+    if not row:
+        return 1  # Valor por defecto si no hay configuración
+    
+    try:
+        trimestre = int(row["trimestre_activo"])
+    except Exception:
+        return 1
+    
+    if trimestre < 1 or trimestre > 4:
+        return 1  # Valor por defecto si el valor es inválido
+    
+    return trimestre
 # -----------------------
 # Decoradores
 # -----------------------
