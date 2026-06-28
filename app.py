@@ -881,6 +881,9 @@ def add_pins_bulk():
     visita_id = session.get("visita_id")
     if not visita_id:
         return jsonify({"error": "No hay visita activa en la sesión."}), 400
+    
+    db = get_db()
+    trimestre_activo = get_trimestre_activo(db)
 
     rows_to_insert = []
     for i, p in enumerate(pins):
@@ -906,6 +909,7 @@ def add_pins_bulk():
                 idu or None,
                 dentro_val,
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                trimestre_activo,
             ))
         except Exception:
             return jsonify({"error": f"Pin #{i}: datos inválidos"}), 400
@@ -914,8 +918,8 @@ def add_pins_bulk():
     try:
         db.executemany(
             """
-            INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, dentro_malla ,creado_en)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, dentro_malla ,creado_en, trimestre)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             rows_to_insert
         )
