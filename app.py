@@ -697,10 +697,23 @@ def admin_panel():
         "SELECT id, username FROM users WHERE role='admin' ORDER BY username"
     ).fetchall()
     s = db.execute(
-        "SELECT center_lon, center_lat, zoom, show_stickers FROM settings WHERE id=1"
+    """
+    SELECT 
+        s.center_lon,
+        s.center_lat,
+        s.zoom,
+        s.show_stickers,
+        s.trimestre_activo,
+        ct.nombre AS trimestre_nombre
+     FROM settings s
+     LEFT JOIN catalogo_trimestres ct
+        ON ct.id = s.trimestre_activo
+     WHERE s.id=1
+        """
     ).fetchone()
+    trimestres = db.execute("SELECT id, nombre FROM catalogo_trimestres WHERE activo=1 ORDER BY id").fetchall()
     layers = db.execute("SELECT * FROM layers ORDER BY created_at DESC").fetchall()
-    return render_template("panel_administracion.html", admins=admins, settings=s, layers=layers)
+    return render_template("panel_administracion.html", admins=admins, settings=s, layers=layers, trimestres=trimestres)
 
 
 @app.route("/admin/create", methods=["POST"])
