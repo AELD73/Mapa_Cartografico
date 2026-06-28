@@ -501,27 +501,41 @@ def add_pin():
 
     db = get_db()
     try:
+        trimestre_activo = get_trimestre_activo(db)
+
         cursor = db.execute(
-            """
-            INSERT INTO pines (visita_id, codigo_pin, lat, lon, nom, idu, dentro_malla, creado_en)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                int(visita_id),
-                codigo_pin,
-                float(lat),
-                float(lon),
-                nom or None,
-                idu or None,
-                dentro_val,
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            ),
+         """
+         INSERT INTO pines (
+            visita_id,
+            codigo_pin,
+            lat,
+            lon,
+            nom,
+            idu,
+            dentro_malla,
+            creado_en,
+            trimestre
         )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            int(visita_id),
+            codigo_pin,
+            float(lat),
+            float(lon),
+            nom or None,
+            idu or None,
+            dentro_val,
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            trimestre_activo,
+        ),
+    )
         db.commit()
         new_id = cursor.lastrowid
         pines_logger.info(
             f"Pin agregado con éxito. ID: {new_id}, Folio (visita_id): {visita_id}, Código: '{codigo_pin}', "
             f"Lat: {lat}, Lon: {lon}, Nom: '{nom}', Idu: '{idu}', Dentro Malla: {dentro_val}."
+            f"Trimestre: {trimestre_activo}."
         )
         return jsonify({"ok": True, "id": new_id}), 201
     except Exception as e:
