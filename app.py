@@ -567,6 +567,8 @@ def get_settings():
         s.zoom,
         s.show_stickers,
         s.trimestre_activo,
+        s.anio_base_grafica,
+        s.anio_actual_grafica,
         ct.nombre AS trimestre_nombre
     FROM settings s
     LEFT JOIN catalogo_trimestres ct
@@ -586,16 +588,28 @@ def save_settings():
         zoom = float(data.get("zoom"))
         show_stickers = int(data.get("show_stickers", 1))
         trimestre_activo = int(data.get("trimestre_activo"))
+        
+        anio_base_grafica = int(data.get("anio_base_grafica", 2024))
+        anio_actual_grafica = int(data.get("anio_actual_grafica", datetime.now().year))
+        
     except (TypeError, ValueError):
         return jsonify({"error": "Valores inválidos"}), 400
     
     if trimestre_activo < 1 or trimestre_activo > 3:
         return jsonify({"error": "trimestre_activo debe ser entre 1 y 3"}), 400
+    if anio_base_grafica < 2000 or anio_actual_grafica < 2000:
+        return jsonify({"error": "Años inválidos"}), 400
+    if anio_base_grafica > 2100 or anio_actual_grafica > 2100:
+        return jsonify({"error": "Años inválidos"}), 400
+    if anio_base_grafica > anio_actual_grafica:
+        return jsonify({"error": "anio_base_grafica no puede ser mayor que anio_actual_grafica"}), 400
+    
+    
 
     db = get_db()
     db.execute(
-        "UPDATE settings SET center_lon=?, center_lat=?, zoom=?, show_stickers=?, trimestre_activo=? WHERE id=1",
-        (lon, lat, zoom, show_stickers, trimestre_activo),
+        "UPDATE settings SET center_lon=?, center_lat=?, zoom=?, show_stickers=?, trimestre_activo=?, anio_base_grafica=?, anio_actual_grafica=? WHERE id=1",
+        (lon, lat, zoom, show_stickers, trimestre_activo, anio_base_grafica, anio_actual_grafica),
     )
     db.commit()
     return jsonify({"ok": True}), 200
@@ -718,6 +732,8 @@ def admin_panel():
         s.zoom,
         s.show_stickers,
         s.trimestre_activo,
+        s.anio_base_grafica,
+        s.anio_actual_grafica,
         ct.nombre AS trimestre_nombre
      FROM settings s
      LEFT JOIN catalogo_trimestres ct
@@ -1327,6 +1343,163 @@ def point_in_polygon(lat, lon, polygon):
         p1x, p1y = p2x, p2y
 
     return inside
+
+#construcción de API publica para la grafica de la BD
+
+@app.route("/api/grafica-pines-movilidad", methods=["GET"])
+def grafica_pines_movilidad():
+    db = get_db()
+
+    codigos_movilidad = ["CAI", "CRI", "DEB", "EVP", "COV", "BAP", "CME", "CSC", "STP"]
+
+    try:
+        # 1. Leer configuración desde settings
+        config = db.execute(
+            """
+            SELECT 
+                s.trimestre_activo,
+                s.anio_base_grafica,
+                s.anio_actual_grafica,
+                ct.nombre AS trimestre_nombre
+            FROM settings s
+            LEFT JOIN catalogo_trimestres ct
+                ON ct.id = s.trimestre_activo
+            WHERE s.id = 1
+            """
+        ).fetchone()
+
+        if not config:
+            return jsonify({
+                "ok": False,
+                "error": "No se encontró configuración en settings."
+            }), 404
+
+        trimestre_activo = int(config["trimestre_activo"])
+        anio_base = int(config["anio_base_grafica"])
+        anio_actual = int(config["anio_actual_grafica"])
+        trimestre_nombre = config["trimestre_nombre"] or f"Trimestre {trimestre_activo}"
+
+        # 2. Obtener catálogo de movilidad para nombres
+        placeholders = ",".join(["%s"] * len(codigos_movilidad))
+
+        catalogo = db.execute(
+            f"""
+            SELECT codigo, nombre
+            FROM catalogo_pines
+            WHERE categoria = 'movilidad'
+              AND codigo IN ({placeholders})
+            """,
+            codigos_movilidad
+        ).fetchall()
+
+        nombres_catalogo = {
+            row["codigo"]: row["nombre"]
+            for row in catalogo
+        }
+
+        # 3. Conteos del histórico usando año base
+        historico_rows = db.execute(
+            f"""
+            SELECT 
+                codigo_pin,
+                COUNT(*) AS total
+            FROM pines_historico
+            WHERE YEAR(creado_en) = ?
+              AND codigo_pin IN ({placeholders})
+            GROUP BY codigo_pin
+            """,
+            [anio_base] + codigos_movilidad
+        ).fetchall()
+
+        conteos_historico = {
+            row["codigo_pin"]: int(row["total"])
+            for row in historico_rows
+        }
+
+        # 4. Conteos actuales usando año actual + trimestre activo
+        actual_rows = db.execute(
+            f"""
+            SELECT 
+                codigo_pin,
+                COUNT(*) AS total
+            FROM pines
+            WHERE YEAR(creado_en) = ?
+              AND trimestre = ?
+              AND codigo_pin IN ({placeholders})
+            GROUP BY codigo_pin
+            """,
+            [anio_actual, trimestre_activo] + codigos_movilidad
+        ).fetchall()
+
+        conteos_actual = {
+            row["codigo_pin"]: int(row["total"])
+            for row in actual_rows
+        }
+
+        # 5. Ordenar datos según la gráfica
+        labels = []
+        nombres = []
+        historico_conteos = []
+        actual_conteos = []
+
+        for codigo in codigos_movilidad:
+            labels.append(codigo)
+            nombres.append(nombres_catalogo.get(codigo, codigo))
+            historico_conteos.append(conteos_historico.get(codigo, 0))
+            actual_conteos.append(conteos_actual.get(codigo, 0))
+
+        # 6. Calcular porcentajes en Python
+        def calcular_porcentajes(lista):
+            total = sum(lista)
+
+            if total == 0:
+                return [0 for _ in lista]
+
+            return [
+                round((valor * 100) / total, 1)
+                for valor in lista
+            ]
+
+        historico_porcentajes = calcular_porcentajes(historico_conteos)
+        actual_porcentajes = calcular_porcentajes(actual_conteos)
+
+        response = jsonify({
+            "ok": True,
+            "configuracion": {
+                "anio_base_grafica": anio_base,
+                "anio_actual_grafica": anio_actual,
+                "trimestre_activo": trimestre_activo,
+                "trimestre_nombre": trimestre_nombre
+            },
+            "labels": labels,
+            "nombres": nombres,
+            "historico": {
+                "titulo": f"Histórico {anio_base}",
+                "conteos": historico_conteos,
+                "porcentajes": historico_porcentajes,
+                "total": sum(historico_conteos)
+            },
+            "actual": {
+                "titulo": f"{trimestre_nombre} {anio_actual}",
+                "conteos": actual_conteos,
+                "porcentajes": actual_porcentajes,
+                "total": sum(actual_conteos)
+            }
+        })
+
+        # Permite que otra página en otro servidor consuma el endpoint
+        response.headers["Access-Control-Allow-Origin"] = "*"
+
+        return response, 200
+
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "error": "No se pudo construir la gráfica de pines de movilidad.",
+            "detalle": str(e)
+        }), 500
+
+
 # -----------------------
 # Main
 # -----------------------
