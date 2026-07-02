@@ -14,38 +14,45 @@
   <div class="wrap">
     <div class="topbar">
       <a class="btn btn-outline" href="{{ url_for('index') }}">← Volver al mapa</a>
-      <a class="btn btn-outline" href="{{ url_for('logout') }}" style="border-color: #dc2626; color: #dc2626;">Cerrar
-        sesión</a>
+      <a class="btn btn-outline" href="{{ url_for('logout') }}" style="border-color: #dc2626; color: #dc2626;">
+        Cerrar sesión
+      </a>
       <div class="user-info">Administración</div>
     </div>
 
     <h1>Panel de Administración</h1>
 
-    {% with msgs = get_flashed_messages(with_categories=true) %} {% if msgs %}
-    <div class="msgs">
-      {% for cat, m in msgs %}
-      <div class="{{ cat }}">{{ m }}</div>
-      {% endfor %}
-    </div>
-    {% endif %} {% endwith %}
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+        <div class="msgs">
+          {% for cat, m in msgs %}
+            <div class="{{ cat }}">{{ m }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
 
     <div class="card">
       <h2>Crear administrador</h2>
+
       <form method="post" action="{{ url_for('admin_create') }}">
         <div class="row">
           <div>
             <label>Usuario</label>
             <input type="text" name="username" required />
           </div>
+
           <div>
             <label>Contraseña</label>
             <input type="password" name="password" required />
           </div>
         </div>
+
         <button type="submit">Crear admin</button>
       </form>
 
       <h3>Administradores existentes</h3>
+
       <table>
         <thead>
           <tr>
@@ -53,39 +60,170 @@
             <th>Usuario</th>
           </tr>
         </thead>
+
         <tbody>
           {% for a in admins %}
-          <tr>
-            <td>{{ a.id }}</td>
-            <td>{{ a.username }}</td>
-          </tr>
+            <tr>
+              <td>{{ a.id }}</td>
+              <td>{{ a.username }}</td>
+            </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
 
     <div class="card">
-      <h2>Configuración de mapa (inicio)</h2>
+      <h2>Configuración de mapa</h2>
+
       <div class="row">
         <div>
           <label>Longitud</label>
           <input id="lon" type="number" step="0.000001" value="{{ settings.center_lon }}" />
         </div>
+
         <div>
           <label>Latitud</label>
           <input id="lat" type="number" step="0.000001" value="{{ settings.center_lat }}" />
         </div>
+
         <div>
           <label>Zoom</label>
           <input id="zoom" type="number" step="0.1" value="{{ settings.zoom }}" />
         </div>
       </div>
+
       <div style="margin-top: 15px;">
         <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
-          <input type="checkbox" id="show_stickers" {% if settings.show_stickers %}checked{% endif %} style="width: auto; margin: 0;" />
+          <input
+            type="checkbox"
+            id="show_stickers"
+            {% if settings.show_stickers %}checked{% endif %}
+            style="width: auto; margin: 0;"
+          />
           Habilitar colocación de pines / íconos en el mapa
         </label>
       </div>
+    </div>
+
+    <div class="card">
+      <h2>Configuración de gráfica de movilidad</h2>
+
+      <p>
+        Esta configuración controla la gráfica de análisis de datos que se muestra
+        en la página principal. El trimestre activo también se guardará en cada
+        nuevo pin registrado.
+      </p>
+
+      <div class="row">
+        <div>
+          <label>Trimestre actual para nuevos pines</label>
+
+          <select id="trimestre_activo">
+            {% for trimestre in trimestres %}
+              <option
+                value="{{ trimestre.id }}"
+                {% if settings.trimestre_activo == trimestre.id %}selected{% endif %}
+              >
+                {{ trimestre.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label>Año actual de la gráfica</label>
+
+          <input
+            id="anio_actual_grafica"
+            type="number"
+            min="2000"
+            max="2100"
+            step="1"
+            value="{{ settings.anio_actual_grafica or 2026 }}"
+          />
+        </div>
+      </div>
+
+      <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;" />
+
+      <h3>Base de comparación</h3>
+
+      <p>
+        Puedes comparar el trimestre actual contra el histórico o contra otro
+        trimestre registrado en la tabla de pines.
+      </p>
+
+      <div class="row">
+        <div>
+          <label>Fuente del año base</label>
+
+          <select id="fuente_base_grafica" onchange="toggleTrimestreBase()">
+            <option
+              value="historico"
+              {% if settings.fuente_base_grafica == 'historico' %}selected{% endif %}
+            >
+              Histórico
+            </option>
+
+            <option
+              value="pines"
+              {% if settings.fuente_base_grafica == 'pines' %}selected{% endif %}
+            >
+              Pines registrados
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label>Año base de la gráfica</label>
+
+          <input
+            id="anio_base_grafica"
+            type="number"
+            min="2000"
+            max="2100"
+            step="1"
+            value="{{ settings.anio_base_grafica or 2024 }}"
+          />
+        </div>
+
+        <div id="bloque_trimestre_base">
+          <label>Trimestre base</label>
+
+          <select id="trimestre_base_grafica">
+            <option value="">No aplica</option>
+
+            {% for trimestre in trimestres %}
+              <option
+                value="{{ trimestre.id }}"
+                {% if settings.trimestre_base_grafica == trimestre.id %}selected{% endif %}
+              >
+                {{ trimestre.nombre }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div style="margin-top: 18px; padding: 14px; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px;">
+        <strong>Configuración actual:</strong>
+        <br />
+        Trimestre actual:
+        <span id="preview_trimestre_actual">
+          {{ settings.trimestre_nombre or 'Sin configurar' }}
+        </span>
+        <br />
+        Año base:
+        <span id="preview_anio_base">
+          {{ settings.anio_base_grafica or 2024 }}
+        </span>
+        <br />
+        Año actual:
+        <span id="preview_anio_actual">
+          {{ settings.anio_actual_grafica or 2026 }}
+        </span>
+      </div>
+
       <button onclick="guardar()">Guardar Configuración</button>
     </div>
 
@@ -97,6 +235,7 @@
 
     <div class="card">
       <h2>Gestión de Capas (Shapefile)</h2>
+
       <p>
         Sube un ZIP que contenga tus archivos .shp, .shx y .dbf. Se procesarán
         para verse en el mapa.
@@ -107,17 +246,25 @@
         <input type="file" name="layer_file" accept=".zip" required />
 
         <label>Nombre de la capa y Color</label>
+
         <div class="input-group-inline">
           <input type="text" name="layer_name" placeholder="Ej. Entorno Urbano" style="flex: 1" />
-          <input type="color" name="layer_color" value="#3388ff" class="color-circle"
-            title="Elige un color para la capa" />
+          <input
+            type="color"
+            name="layer_color"
+            value="#3388ff"
+            class="color-circle"
+            title="Elige un color para la capa"
+          />
         </div>
 
         <label style="margin-top: 1.5rem">Icono personalizado (Opcional, para puntos)</label>
+
         <p style="margin-top: 0">
-          Sube una imagen (PNG/JPG/SVG) si quieres que los puntos se vean con
+          Sube una imagen PNG/JPG/SVG si quieres que los puntos se vean con
           este icono.
         </p>
+
         <input type="file" name="layer_icon" accept=".png,.jpg,.jpeg,.svg,.webp" />
 
         <label class="checkbox-label">
@@ -127,13 +274,14 @@
 
         <label class="checkbox-label" style="margin-top: 0.5rem">
           <input type="checkbox" name="dissolve_polygons" />
-          Disolver/Fusionar polígonos (une todas las manzanas en una sola silueta limpia)
+          Disolver/Fusionar polígonos
         </label>
 
         <button type="submit">Subir y Procesar</button>
       </form>
 
       <h3>Capas activas</h3>
+
       <table>
         <thead>
           <tr>
@@ -142,32 +290,37 @@
             <th>Acción</th>
           </tr>
         </thead>
+
         <tbody>
           {% for layer in layers %}
-          <tr>
-            <td>
-              <span class="layer-color-indicator" data-color="{{ layer.color }}"></span>
-              {{ layer.name }}
-            </td>
-            <td>{{ layer.created_at[:10] }}</td>
-            <td>
-              <form method="POST" action="{{ url_for('delete_layer', filename=layer.filename) }}" onsubmit="
-                    return confirm('¿Seguro que quieres borrar esta capa?');
-                  " style="margin: 0">
-                <button type="submit" class="danger-link">Borrar</button>
-              </form>
-            </td>
-          </tr>
+            <tr>
+              <td>
+                <span class="layer-color-indicator" data-color="{{ layer.color }}"></span>
+                {{ layer.name }}
+              </td>
+
+              <td>{{ layer.created_at[:10] }}</td>
+
+              <td>
+                <form
+                  method="POST"
+                  action="{{ url_for('delete_layer', filename=layer.filename) }}"
+                  onsubmit="return confirm('¿Seguro que quieres borrar esta capa?');"
+                  style="margin: 0"
+                >
+                  <button type="submit" class="danger-link">Borrar</button>
+                </form>
+              </td>
+            </tr>
           {% else %}
-          <tr>
-            <td colspan="3" style="
-                  text-align: center;
-                  color: var(--text-muted);
-                  padding: 2rem;
-                ">
-              No hay capas subidas.
-            </td>
-          </tr>
+            <tr>
+              <td
+                colspan="3"
+                style="text-align: center; color: var(--text-muted); padding: 2rem;"
+              >
+                No hay capas subidas.
+              </td>
+            </tr>
           {% endfor %}
         </tbody>
       </table>
@@ -175,27 +328,104 @@
   </div>
 
   <script>
+    function toggleTrimestreBase() {
+      const fuenteBase = document.getElementById("fuente_base_grafica").value;
+      const bloqueTrimestreBase = document.getElementById("bloque_trimestre_base");
+      const trimestreBase = document.getElementById("trimestre_base_grafica");
+
+      if (fuenteBase === "historico") {
+        bloqueTrimestreBase.style.opacity = "0.45";
+        trimestreBase.disabled = true;
+        trimestreBase.value = "";
+      } else {
+        bloqueTrimestreBase.style.opacity = "1";
+        trimestreBase.disabled = false;
+      }
+    }
+
+    function actualizarPreview() {
+      const trimestreSelect = document.getElementById("trimestre_activo");
+      const anioBase = document.getElementById("anio_base_grafica").value;
+      const anioActual = document.getElementById("anio_actual_grafica").value;
+
+      const trimestreTexto =
+        trimestreSelect.options[trimestreSelect.selectedIndex]?.text || "Sin configurar";
+
+      document.getElementById("preview_trimestre_actual").textContent =
+        trimestreTexto;
+
+      document.getElementById("preview_anio_base").textContent =
+        anioBase;
+
+      document.getElementById("preview_anio_actual").textContent =
+        anioActual;
+    }
+
     async function guardar() {
+      const fuenteBase = document.getElementById("fuente_base_grafica").value;
+      const trimestreBaseElement = document.getElementById("trimestre_base_grafica");
+
+      let trimestreBase = null;
+
+      if (fuenteBase === "pines") {
+        trimestreBase = parseInt(trimestreBaseElement.value);
+
+        if (!trimestreBase) {
+          alert("Selecciona un trimestre base para comparar contra pines registrados.");
+          return;
+        }
+      }
+
       const body = {
         center_lon: parseFloat(document.getElementById("lon").value),
         center_lat: parseFloat(document.getElementById("lat").value),
         zoom: parseFloat(document.getElementById("zoom").value),
-        show_stickers: document.getElementById("show_stickers").checked ? 1 : 0
+        show_stickers: document.getElementById("show_stickers").checked ? 1 : 0,
+
+        trimestre_activo: parseInt(document.getElementById("trimestre_activo").value),
+        anio_actual_grafica: parseInt(document.getElementById("anio_actual_grafica").value),
+
+        fuente_base_grafica: fuenteBase,
+        anio_base_grafica: parseInt(document.getElementById("anio_base_grafica").value),
+        trimestre_base_grafica: trimestreBase
       };
+
       const r = await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (r.ok) alert("Guardado correctamente");
-      else alert("Error guardando configuración");
+
+      if (r.ok) {
+        alert("Guardado correctamente");
+        actualizarPreview();
+      } else {
+        let errorText = "Error guardando configuración";
+
+        try {
+          const errorData = await r.json();
+          if (errorData.error) {
+            errorText = errorData.error;
+          }
+        } catch (e) {}
+
+        alert(errorText);
+      }
     }
 
-    // Aplicar colores a los indicadores de capa
-    document.querySelectorAll('.layer-color-indicator').forEach(el => {
-      if (el.dataset.color) {
-        el.style.backgroundColor = el.dataset.color;
-      }
+    document.addEventListener("DOMContentLoaded", function () {
+      toggleTrimestreBase();
+      actualizarPreview();
+
+      document.getElementById("trimestre_activo").addEventListener("change", actualizarPreview);
+      document.getElementById("anio_base_grafica").addEventListener("input", actualizarPreview);
+      document.getElementById("anio_actual_grafica").addEventListener("input", actualizarPreview);
+
+      document.querySelectorAll(".layer-color-indicator").forEach(el => {
+        if (el.dataset.color) {
+          el.style.backgroundColor = el.dataset.color;
+        }
+      });
     });
   </script>
 </body>
